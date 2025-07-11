@@ -1,20 +1,25 @@
 package www
 
-import www.components.Button
-import www.locator.Locator
+import www.components.{Button, Card}
+import www.locator.UIComponent
 
 import com.raquo.laminar.api.L.*
 
-case class App() extends Locator {
+case class App() extends UIComponent {
   def render() = {
     div(
-      width.px(300),
-      height.px(300),
+      width.px(600),
+      height.px(400),
       border("1px solid black"),
       display.flex,
+      flexDirection.column,
       padding.px(12),
       alignItems.start,
-      Button()()
+      Card("Example Card")(
+        p("This is some content inside the card."),
+        Button()(),
+        p("More content here.")
+      )
     )
   }
 }

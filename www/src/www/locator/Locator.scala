@@ -3,27 +3,38 @@ package www.locator
 import scala.scalajs.LinkingInfo.developmentMode
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.codecs.StringAsIsCodec
+import com.raquo.laminar.codecs.{IntAsStringCodec, StringAsIsCodec}
 
-trait Locator(using
-    n: sourcecode.Name,
-    f: sourcecode.File
+trait Locator(
+  using
+  n: sourcecode.FileName,
+  f: sourcecode.File,
+  l: sourcecode.Line
 ) {
-  private lazy val scalaSourcePath =
-    htmlProp("__scalasourcepath", StringAsIsCodec)
-  private lazy val scalaName =
-    htmlProp("__scalaname", StringAsIsCodec)
 
-  def render(): HtmlElement
-
-  def apply(): HtmlElement = {
-    val el = render()
-    el.amend(scalaName := n.value)
+  def modifiers(el: HtmlElement): HtmlElement = {
+    el.amend(Locator.scalaFileName := n.value)
     if (developmentMode) {
-      el.amend(scalaSourcePath := f.value)
+      el.amend(
+        Locator.scalaSourcePath := f.value,
+        Locator.scalaLineNumber := l.value,
+        dataAttr("source-path") := s"${n.value}:${l.value}"
+      )
     }
     el
-
   }
+
+}
+
+object Locator {
+
+  private lazy val scalaSourcePath =
+    htmlProp("__scalasourcepath", StringAsIsCodec)
+
+  private lazy val scalaFileName =
+    htmlProp("__scalafilename", StringAsIsCodec)
+
+  private lazy val scalaLineNumber =
+    htmlProp("__scalasourceline", IntAsStringCodec)
 
 }

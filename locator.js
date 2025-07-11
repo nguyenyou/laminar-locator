@@ -1,6 +1,6 @@
 /**
  * Scala Source Locator
- * 
+ *
  * This module provides visual overlay functionality for Scala source code navigation.
  * When Alt key is pressed, it highlights DOM elements that have source path information
  * and allows clicking to open the corresponding source file in the configured IDE.
@@ -62,17 +62,27 @@
     overlayDiv: null,
     tooltipDiv: null,
     currentTargetElement: null,
-    
+    currentMousePosition: { clientX: 0, clientY: 0 },
+
     /**
      * Reset all state to initial values
      */
     reset() {
       this.altPressed = false;
       this.currentTargetElement = null;
+      this.currentMousePosition = { clientX: 0, clientY: 0 };
       this.resetCursor();
       this.hideOverlay();
     },
-    
+
+    /**
+     * Update current mouse position
+     */
+    updateMousePosition(clientX, clientY) {
+      this.currentMousePosition.clientX = clientX;
+      this.currentMousePosition.clientY = clientY;
+    },
+
     /**
      * Set Alt key pressed state and update cursor
      */
@@ -80,14 +90,14 @@
       this.altPressed = pressed;
       document.body.style.cursor = pressed ? "crosshair" : "";
     },
-    
+
     /**
      * Reset cursor to default
      */
     resetCursor() {
       document.body.style.cursor = "";
     },
-    
+
     /**
      * Hide overlay and tooltip
      */
@@ -126,8 +136,15 @@
    * Open file at source path using configured IDE protocol
    * @param {string} sourcePath - Path to the source file
    */
-  function openFileAtSourcePath(sourcePath) {
-    const uri = `${EDITOR_PROTOCOL[PREFER_IDE_PROTOCOL]}${sourcePath}`;
+  function openFileAtSourcePath(sourcePath, sourceLine) {
+    let uri = `${EDITOR_PROTOCOL[PREFER_IDE_PROTOCOL]}${sourcePath}`;
+    if(sourceLine) {
+      if(PREFER_IDE_PROTOCOL === "idea") {
+        uri += `&line=${sourceLine}`;
+      } else {
+        uri += `:${sourceLine}`;
+      }
+    }
     window.open(uri, "_blank");
   }
 
@@ -183,7 +200,7 @@
   function createOverlayElement() {
     const div = document.createElement("div");
     div.id = "locator-overlay";
-    
+
     // Apply base styles
     Object.assign(div.style, {
       position: "fixed",
@@ -201,7 +218,7 @@
 
     // Add click event listener
     div.addEventListener("click", handleOverlayClick);
-    
+
     document.body.appendChild(div);
     return div;
   }
@@ -213,7 +230,7 @@
   function createTooltipElement() {
     const tooltip = document.createElement("div");
     tooltip.id = "locator-tooltip";
-    
+
     // Apply base styles
     Object.assign(tooltip.style, {
       position: "fixed",
@@ -391,9 +408,10 @@
 
     // Validate required properties
     const scalasourcepath = targetElement.__scalasourcepath;
-    const scalaname = targetElement.__scalaname;
-    
-    if (!scalasourcepath || !scalaname) {
+    const scalafilename = targetElement.__scalafilename;
+    const scalasourceline = targetElement.__scalasourceline;
+
+    if (!scalasourcepath || !scalafilename || !scalasourceline) {
       LocatorState.hideOverlay();
       return;
     }
@@ -401,11 +419,11 @@
     // Calculate and apply overlay position
     const targetRect = targetElement.getBoundingClientRect();
     const overlayPosition = calculateOverlayPosition(targetRect);
-    
+
     applyOverlayStyles(overlayPosition);
-    
+
     // Update tooltip
-    updateTooltipPosition(scalaname, overlayPosition);
+    updateTooltipPosition(`${scalafilename}:${scalasourceline}`, overlayPosition);
   }
 
   /**
@@ -429,7 +447,7 @@
    */
   function updateTooltipPosition(content, overlayPosition) {
     const tooltip = LocatorState.tooltipDiv;
-    
+
     // Set content and make visible to measure dimensions
     tooltip.textContent = content;
     tooltip.style.display = "block";
@@ -476,12 +494,13 @@
 
     try {
       const targetElement = LocatorState.currentTargetElement;
-      
+
       if (targetElement && targetElement.__scalasourcepath) {
         const sourcePath = targetElement.__scalasourcepath;
-        
-        openFileAtSourcePath(sourcePath);
-        
+        const sourceLine = targetElement.__scalasourceline
+
+        openFileAtSourcePath(sourcePath, sourceLine);
+
         // Exit locator mode after successful click
         LocatorState.reset();
       } else {
@@ -497,8 +516,18 @@
    * @param {KeyboardEvent} event - Keyboard event
    */
   function handleKeyDown(event) {
-    if (event.key === "Alt") {
+    if (event.key === "Alt" && !LocatorState.altPressed) {
+      // Alt key pressed for the first time - immediately trigger overlay at current mouse position
       LocatorState.setAltPressed(true);
+
+      // Create a synthetic mouse event with current mouse position
+      const syntheticMouseEvent = {
+        clientX: LocatorState.currentMousePosition.clientX,
+        clientY: LocatorState.currentMousePosition.clientY
+      };
+
+      // Immediately render overlay at current mouse position
+      renderLocatorOverlay(syntheticMouseEvent);
     }
   }
 
@@ -525,6 +554,9 @@
    * @param {MouseEvent} event - Mouse event
    */
   function handleMouseMove(event) {
+    // Always update current mouse position for immediate Alt-key response
+    LocatorState.updateMousePosition(event.clientX, event.clientY);
+
     if (LocatorState.altPressed) {
       renderLocatorOverlay(event);
     } else {
@@ -562,10 +594,10 @@
     // Keyboard event listeners
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
-    
+
     // Window focus management
     window.addEventListener("blur", handleWindowBlur);
-    
+
     // Mouse movement with throttling for performance
     window.addEventListener(
       "mousemove",
