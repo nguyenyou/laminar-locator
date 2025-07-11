@@ -8,7 +8,7 @@ trait UILayoutComponent extends Locator {
   def render(children: HtmlElement*): HtmlElement
 
   def apply(children: HtmlElement*): HtmlElement = {
-    modifiers(render(children*))
+    locatorModifiers(render(children*))
   }
 
 }

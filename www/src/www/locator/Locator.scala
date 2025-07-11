@@ -5,14 +5,13 @@ import scala.scalajs.LinkingInfo.developmentMode
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.codecs.{IntAsStringCodec, StringAsIsCodec}
 
-trait Locator(
-  using
-  n: sourcecode.FileName,
-  f: sourcecode.File,
-  l: sourcecode.Line
+trait Locator(using
+    n: sourcecode.FileName,
+    f: sourcecode.File,
+    l: sourcecode.Line
 ) {
 
-  def modifiers(el: HtmlElement): HtmlElement = {
+  def locatorModifiers(el: HtmlElement): HtmlElement = {
     el.amend(Locator.scalaFileName := n.value)
     if (developmentMode) {
       el.amend(
@@ -37,4 +36,21 @@ object Locator {
   private lazy val scalaLineNumber =
     htmlProp("__scalasourceline", IntAsStringCodec)
 
+  extension (element: HtmlElement) {
+    inline def withLocator: HtmlElement = {
+      val fileName = sourcecode.FileName()
+      val file = sourcecode.File()
+      val line = sourcecode.Line()
+
+      element.amend(scalaFileName := fileName)
+      if (developmentMode) {
+        element.amend(
+          scalaSourcePath := file,
+          scalaLineNumber := line,
+          dataAttr("source-path") := s"${fileName}:${line}"
+        )
+      }
+      element
+    }
+  }
 }
