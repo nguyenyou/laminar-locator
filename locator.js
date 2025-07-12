@@ -36,8 +36,10 @@
         /* Locator Colors - Keyboard Theme (Orange) */
         --locator-keyboard-color: #ff8c00;
         --locator-keyboard-bg: rgba(255, 140, 0, 0.15);
+        --locator-keyboard-bg-medium: rgba(255, 140, 0, 0.22);
         --locator-keyboard-shadow-light: rgba(255, 140, 0, 0.3);
         --locator-keyboard-shadow-medium: rgba(255, 140, 0, 0.5);
+        --locator-keyboard-shadow-active: rgba(255, 140, 0, 0.6);
         --locator-keyboard-border-accent: rgba(255, 140, 0, 0.3);
         --locator-keyboard-glow: rgba(255, 140, 0, 0.2);
 
@@ -106,6 +108,7 @@
         --locator-shadow-overlay: 0 0 0 1px var(--locator-white-semi), 0 4px 16px var(--locator-primary-shadow-light), 0 2px 8px var(--locator-black-shadow-light);
         --locator-shadow-overlay-hover: 0 0 0 1px var(--locator-white-medium), 0 6px 20px var(--locator-primary-shadow-medium), 0 3px 12px var(--locator-black-shadow-medium);
         --locator-shadow-overlay-keyboard: 0 0 0 2px var(--locator-white-strong), 0 0 16px var(--locator-keyboard-shadow-medium), 0 4px 20px var(--locator-keyboard-shadow-light);
+        --locator-shadow-overlay-keyboard-active: 0 0 0 2px var(--locator-white-strong), 0 0 20px var(--locator-keyboard-shadow-active), 0 6px 24px var(--locator-keyboard-shadow-medium);
         --locator-shadow-tooltip: 0 4px 20px var(--locator-black-shadow-max), 0 2px 8px var(--locator-black-shadow-strong);
         --locator-shadow-tooltip-keyboard: 0 6px 24px var(--locator-black-shadow-ultra), 0 0 0 1px var(--locator-keyboard-glow);
         --locator-shadow-parent-tooltip: 0 8px 32px var(--locator-black-shadow-heavy);
@@ -156,11 +159,22 @@
     },
 
     // Keyboard navigation specific styles - harmonious orange theme
+    // Matches mouse overlay structure but with distinct orange color scheme
     keyboard: {
       backgroundColor: "var(--locator-keyboard-bg)",
       border: `var(--locator-border-width-thick) solid var(--locator-keyboard-color)`,
-      boxShadow: "var(--locator-shadow-overlay-keyboard)",
       borderRadius: "var(--locator-border-radius-large)", // Slightly more rounded for keyboard mode distinction
+      boxShadow: "var(--locator-shadow-overlay-keyboard)",
+      zIndex: "var(--locator-overlay-z-index)", // Same z-index as mouse overlay
+      transition: `all var(--locator-transition-normal) var(--locator-easing-smooth)`, // Same transition as mouse overlay
+      elementOffset: "var(--locator-element-offset)", // Same offset as mouse overlay
+
+      // Enhanced visual state for keyboard navigation (equivalent to mouse hover)
+      active: {
+        backgroundColor: "var(--locator-keyboard-bg-medium)",
+        boxShadow: "var(--locator-shadow-overlay-keyboard-active)",
+        transform: "scale(var(--locator-scale-hover))", // Same scale effect as mouse hover
+      }
     }
   };
 
@@ -257,6 +271,7 @@
         this.keyboardSelectedElement = null;
         // When switching back to mouse mode, ensure the current target is updated
         // This will trigger a re-render with mouse mode styling
+        removeKeyboardActiveState();
       }
     },
 
@@ -595,6 +610,14 @@
     if (targetElement) {
       LocatorState.setKeyboardSelectedElement(targetElement);
       updateOverlayPosition(targetElement);
+
+      // Apply keyboard active state for visual feedback
+      applyKeyboardActiveState();
+
+      // Remove active state after a brief moment to provide feedback
+      setTimeout(() => {
+        removeKeyboardActiveState();
+      }, 200); // Brief feedback duration
     }
   }
 
@@ -925,6 +948,34 @@
   }
 
   /**
+   * Apply keyboard navigation active state styling to overlay
+   * This provides visual feedback equivalent to mouse hover for keyboard navigation
+   */
+  function applyKeyboardActiveState() {
+    if (LocatorState.overlayDiv && LocatorState.navigationMode === 'keyboard') {
+      Object.assign(LocatorState.overlayDiv.style, {
+        backgroundColor: OVERLAY_STYLES.keyboard.active.backgroundColor,
+        boxShadow: OVERLAY_STYLES.keyboard.active.boxShadow,
+        transform: OVERLAY_STYLES.keyboard.active.transform,
+      });
+    }
+  }
+
+  /**
+   * Remove keyboard navigation active state styling from overlay
+   * This resets to the base keyboard overlay styling
+   */
+  function removeKeyboardActiveState() {
+    if (LocatorState.overlayDiv && LocatorState.navigationMode === 'keyboard') {
+      Object.assign(LocatorState.overlayDiv.style, {
+        backgroundColor: OVERLAY_STYLES.keyboard.backgroundColor,
+        boxShadow: OVERLAY_STYLES.keyboard.boxShadow,
+        transform: "scale(var(--locator-scale-normal))",
+      });
+    }
+  }
+
+  /**
    * Create the tooltip element that shows element information
    * @returns {HTMLDivElement} Created tooltip element
    */
@@ -1222,6 +1273,8 @@
           border: OVERLAY_STYLES.keyboard.border,
           borderRadius: OVERLAY_STYLES.keyboard.borderRadius,
           boxShadow: OVERLAY_STYLES.keyboard.boxShadow,
+          zIndex: OVERLAY_STYLES.keyboard.zIndex,
+          transition: OVERLAY_STYLES.keyboard.transition,
         });
       } else {
         Object.assign(styles, {
@@ -1229,6 +1282,8 @@
           border: OVERLAY_STYLES.border,
           borderRadius: OVERLAY_STYLES.borderRadius,
           boxShadow: OVERLAY_STYLES.boxShadow,
+          zIndex: OVERLAY_STYLES.zIndex,
+          transition: OVERLAY_STYLES.transition,
         });
       }
 
