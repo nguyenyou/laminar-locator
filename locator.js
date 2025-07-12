@@ -1761,6 +1761,7 @@
         this.locatorSystem.state.setAltPressed(false);
         this.locatorSystem.state.setKeyboardNavigationActive(false);
         this.locatorSystem.overlay.hide();
+        this.locatorSystem.tooltip.hideMain();
         this.locatorSystem.tooltip.hideParent();
         this.locatorSystem.state.parentTooltipToggled = false;
       } else if (event.key === "Shift") {
