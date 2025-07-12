@@ -1821,6 +1821,7 @@
 
       if (this.locatorSystem.state.altPressed) {
         // Switch to mouse mode if in keyboard mode
+        const wasKeyboardMode = this.locatorSystem.state.keyboardNavigationActive;
         if (this.locatorSystem.state.keyboardNavigationActive) {
           this.locatorSystem.state.setKeyboardNavigationActive(false);
         }
