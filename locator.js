@@ -34,6 +34,13 @@
     zIndex: "9999",
     transition: "all 0.1s ease-out",
     elementOffset: 8, // Offset around target elements
+
+    // Keyboard navigation specific styles
+    keyboard: {
+      backgroundColor: "rgba(255, 165, 0, 0.2)", // Orange background for keyboard selection
+      border: "3px solid #ff8c00", // Thicker orange border
+      boxShadow: "0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 12px rgba(255, 140, 0, 0.6)", // More prominent glow
+    }
   };
 
   // Tooltip styling constants
@@ -73,6 +80,11 @@
     lastTargetElement: null, // Track last target to detect component changes
     parentTooltipToggled: false, // Track if parent tooltip was manually toggled
 
+    // Keyboard navigation state
+    keyboardNavigationActive: false, // Track if keyboard navigation is active
+    keyboardSelectedElement: null, // Currently selected element via keyboard
+    navigationMode: 'mouse', // 'mouse' or 'keyboard'
+
     /**
      * Reset all state to initial values
      */
@@ -84,6 +96,9 @@
       this.currentMousePosition = { clientX: 0, clientY: 0 };
       this.parentTooltipVisible = false;
       this.parentTooltipToggled = false;
+      this.keyboardNavigationActive = false;
+      this.keyboardSelectedElement = null;
+      this.navigationMode = 'mouse';
       if (this.parentTooltipTimeout) {
         clearTimeout(this.parentTooltipTimeout);
         this.parentTooltipTimeout = null;
@@ -91,6 +106,30 @@
       this.resetCursor();
       this.hideOverlay();
       this.hideParentTooltip();
+    },
+
+    /**
+     * Set keyboard navigation mode and update visual state
+     */
+    setKeyboardNavigationActive(active) {
+      this.keyboardNavigationActive = active;
+      this.navigationMode = active ? 'keyboard' : 'mouse';
+      if (!active) {
+        this.keyboardSelectedElement = null;
+        // When switching back to mouse mode, ensure the current target is updated
+        // This will trigger a re-render with mouse mode styling
+      }
+    },
+
+    /**
+     * Set the currently selected element for keyboard navigation
+     */
+    setKeyboardSelectedElement(element) {
+      this.keyboardSelectedElement = element;
+      if (element) {
+        this.keyboardNavigationActive = true;
+        this.navigationMode = 'keyboard';
+      }
     },
 
     /**
@@ -247,6 +286,305 @@
     }
 
     return parents;
+  }
+
+  // ============================================================================
+  // KEYBOARD NAVIGATION FUNCTIONS
+  // ============================================================================
+
+  /**
+   * Navigate to parent component (with cycling to deepest component if at root)
+   * @param {Element} currentElement - Current element
+   * @returns {Element|null} Parent component or deepest component if at root
+   */
+  function navigateToParent(currentElement) {
+    if (!currentElement) return null;
+
+    const parent = findParentComponent(currentElement);
+    if (parent) {
+      return parent;
+    } else {
+      // At root level, cycle to the deepest component
+      return findDeepestComponent();
+    }
+  }
+
+  /**
+   * Navigate to first child component (with cycling to first component if no children)
+   * @param {Element} currentElement - Current element
+   * @returns {Element|null} First child component or first component if no children
+   */
+  function navigateToFirstChild(currentElement) {
+    if (!currentElement) return null;
+
+    const children = findChildComponents(currentElement);
+    if (children.length > 0) {
+      return children[0];
+    } else {
+      // No children, cycle to the first component in the tree
+      return findFirstComponent();
+    }
+  }
+
+  /**
+   * Navigate to next sibling component (with cycling)
+   * @param {Element} currentElement - Current element
+   * @returns {Element|null} Next sibling component or null if none found
+   */
+  function navigateToNextSibling(currentElement) {
+    if (!currentElement) return null;
+    const siblings = findSiblingComponents(currentElement);
+    return getNextSibling(currentElement, siblings);
+  }
+
+  /**
+   * Navigate to previous sibling component (with cycling)
+   * @param {Element} currentElement - Current element
+   * @returns {Element|null} Previous sibling component or null if none found
+   */
+  function navigateToPreviousSibling(currentElement) {
+    if (!currentElement) return null;
+    const siblings = findSiblingComponents(currentElement);
+    return getPreviousSibling(currentElement, siblings);
+  }
+
+  /**
+   * Handle keyboard navigation based on arrow key direction
+   * @param {string} direction - 'up', 'down', 'left', 'right'
+   */
+  function handleKeyboardNavigation(direction) {
+    let targetElement = null;
+    const currentElement = LocatorState.keyboardSelectedElement || LocatorState.currentTargetElement;
+
+    if (!currentElement) {
+      // No current element, start with first top-level component
+      const topLevel = findTopLevelComponents();
+      if (topLevel.length > 0) {
+        targetElement = topLevel[0];
+      }
+    } else {
+      switch (direction) {
+        case 'up':
+          targetElement = navigateToParent(currentElement);
+          break;
+        case 'down':
+          targetElement = navigateToFirstChild(currentElement);
+          break;
+        case 'left':
+          targetElement = navigateToPreviousSibling(currentElement);
+          break;
+        case 'right':
+          targetElement = navigateToNextSibling(currentElement);
+          break;
+      }
+    }
+
+    if (targetElement) {
+      LocatorState.setKeyboardSelectedElement(targetElement);
+      updateOverlayPosition(targetElement);
+    }
+  }
+
+  // ============================================================================
+  // COMPONENT TREE NAVIGATION FUNCTIONS
+  // ============================================================================
+
+  /**
+   * Find the immediate parent component with source path information
+   * @param {Element} currentElement - Current element to start searching from
+   * @returns {Element|null} Parent element with __scalasourcepath property or null
+   */
+  function findParentComponent(currentElement) {
+    let element = currentElement.parentElement;
+
+    while (element && element !== document.body) {
+      if (Object.hasOwn(element, "__scalasourcepath")) {
+        return element;
+      }
+      element = element.parentElement;
+    }
+
+    return null;
+  }
+
+  /**
+   * Find all direct child components with source path information
+   * @param {Element} currentElement - Current element to search within
+   * @returns {Array} Array of child elements with __scalasourcepath property
+   */
+  function findChildComponents(currentElement) {
+    const children = [];
+    const walker = document.createTreeWalker(
+      currentElement,
+      NodeFilter.SHOW_ELEMENT,
+      {
+        acceptNode: function(node) {
+          // Skip the current element itself
+          if (node === currentElement) {
+            return NodeFilter.FILTER_SKIP;
+          }
+
+          // If this node has source path, it's a component
+          if (Object.hasOwn(node, "__scalasourcepath")) {
+            return NodeFilter.FILTER_ACCEPT;
+          }
+
+          // Continue searching through this node's children
+          return NodeFilter.FILTER_SKIP;
+        }
+      }
+    );
+
+    let node;
+    while (node = walker.nextNode()) {
+      // Only include direct children, not nested grandchildren
+      // Check if any ancestor between this node and currentElement has __scalasourcepath
+      let ancestor = node.parentElement;
+      let isDirectChild = true;
+
+      while (ancestor && ancestor !== currentElement) {
+        if (Object.hasOwn(ancestor, "__scalasourcepath")) {
+          isDirectChild = false;
+          break;
+        }
+        ancestor = ancestor.parentElement;
+      }
+
+      if (isDirectChild) {
+        children.push(node);
+      }
+    }
+
+    return children;
+  }
+
+  /**
+   * Find all sibling components at the same level
+   * @param {Element} currentElement - Current element to find siblings for
+   * @returns {Array} Array of sibling elements with __scalasourcepath property
+   */
+  function findSiblingComponents(currentElement) {
+    const parent = findParentComponent(currentElement);
+    if (!parent) {
+      // If no parent component, look for siblings at the document level
+      return findTopLevelComponents().filter(el => el !== currentElement);
+    }
+
+    const siblings = findChildComponents(parent);
+    return siblings.filter(el => el !== currentElement);
+  }
+
+  /**
+   * Find all top-level components (components without parent components)
+   * @returns {Array} Array of top-level elements with __scalasourcepath property
+   */
+  function findTopLevelComponents() {
+    const topLevel = [];
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_ELEMENT,
+      {
+        acceptNode: function(node) {
+          if (Object.hasOwn(node, "__scalasourcepath")) {
+            // Check if this element has any parent with __scalasourcepath
+            let parent = node.parentElement;
+            while (parent && parent !== document.body) {
+              if (Object.hasOwn(parent, "__scalasourcepath")) {
+                return NodeFilter.FILTER_REJECT;
+              }
+              parent = parent.parentElement;
+            }
+            return NodeFilter.FILTER_ACCEPT;
+          }
+          return NodeFilter.FILTER_SKIP;
+        }
+      }
+    );
+
+    let node;
+    while (node = walker.nextNode()) {
+      topLevel.push(node);
+    }
+
+    return topLevel;
+  }
+
+  /**
+   * Get all components in the tree in depth-first order
+   * @returns {Array} Array of all components in traversal order
+   */
+  function getAllComponentsInOrder() {
+    const components = [];
+
+    function traverseDepthFirst(element) {
+      if (Object.hasOwn(element, "__scalasourcepath")) {
+        components.push(element);
+      }
+
+      // Traverse children
+      const children = findChildComponents(element);
+      for (const child of children) {
+        traverseDepthFirst(child);
+      }
+    }
+
+    // Start with top-level components
+    const topLevel = findTopLevelComponents();
+    for (const component of topLevel) {
+      traverseDepthFirst(component);
+    }
+
+    return components;
+  }
+
+  /**
+   * Find the deepest/last component in the tree hierarchy
+   * @returns {Element|null} The deepest component or null if none found
+   */
+  function findDeepestComponent() {
+    const allComponents = getAllComponentsInOrder();
+    return allComponents.length > 0 ? allComponents[allComponents.length - 1] : null;
+  }
+
+  /**
+   * Find the first/topmost component in the tree hierarchy
+   * @returns {Element|null} The first component or null if none found
+   */
+  function findFirstComponent() {
+    const allComponents = getAllComponentsInOrder();
+    return allComponents.length > 0 ? allComponents[0] : null;
+  }
+
+  /**
+   * Get the next sibling component in the list (with cycling)
+   * @param {Element} currentElement - Current element
+   * @param {Array} siblings - Array of sibling elements
+   * @returns {Element|null} Next sibling element or null if no siblings
+   */
+  function getNextSibling(currentElement, siblings) {
+    if (siblings.length === 0) return null;
+
+    const currentIndex = siblings.indexOf(currentElement);
+    if (currentIndex === -1) return siblings[0]; // Current not in siblings, return first
+
+    // Cycle to first if at the end
+    return siblings[(currentIndex + 1) % siblings.length];
+  }
+
+  /**
+   * Get the previous sibling component in the list (with cycling)
+   * @param {Element} currentElement - Current element
+   * @param {Array} siblings - Array of sibling elements
+   * @returns {Element|null} Previous sibling element or null if no siblings
+   */
+  function getPreviousSibling(currentElement, siblings) {
+    if (siblings.length === 0) return null;
+
+    const currentIndex = siblings.indexOf(currentElement);
+    if (currentIndex === -1) return siblings[siblings.length - 1]; // Current not in siblings, return last
+
+    // Cycle to last if at the beginning
+    return siblings[(currentIndex - 1 + siblings.length) % siblings.length];
   }
 
   /**
@@ -551,13 +889,31 @@
    * @param {Object} position - Position object with left, top, width, height
    */
   function applyOverlayStyles(position) {
-    Object.assign(LocatorState.overlayDiv.style, {
+    const isKeyboardMode = LocatorState.navigationMode === 'keyboard';
+    const styles = {
       left: `${position.left}px`,
       top: `${position.top}px`,
       width: `${position.width}px`,
       height: `${position.height}px`,
       display: "block",
-    });
+    };
+
+    // Apply different visual styles based on navigation mode
+    if (isKeyboardMode) {
+      Object.assign(styles, {
+        backgroundColor: OVERLAY_STYLES.keyboard.backgroundColor,
+        border: OVERLAY_STYLES.keyboard.border,
+        boxShadow: OVERLAY_STYLES.keyboard.boxShadow,
+      });
+    } else {
+      Object.assign(styles, {
+        backgroundColor: OVERLAY_STYLES.backgroundColor,
+        border: OVERLAY_STYLES.border,
+        boxShadow: OVERLAY_STYLES.boxShadow,
+      });
+    }
+
+    Object.assign(LocatorState.overlayDiv.style, styles);
   }
 
   /**
@@ -567,9 +923,16 @@
    */
   function updateTooltipPosition(content, overlayPosition) {
     const tooltip = LocatorState.tooltipDiv;
+    const isKeyboardMode = LocatorState.navigationMode === 'keyboard';
+
+    // Add keyboard navigation hints if in keyboard mode
+    let tooltipContent = content;
+    if (isKeyboardMode) {
+      tooltipContent += " • Alt+↑↓←→ to navigate";
+    }
 
     // Set content and make visible to measure dimensions
-    tooltip.textContent = content;
+    tooltip.textContent = tooltipContent;
     tooltip.style.display = "block";
 
     // Get tooltip dimensions
@@ -874,11 +1237,35 @@
   }
 
   /**
-   * Handle keydown events for Alt and Shift key detection
+   * Handle keydown events for Alt and Shift key detection and arrow key navigation
    * @param {KeyboardEvent} event - Keyboard event
    */
   function handleKeyDown(event) {
     console.log("keydown", event.key);
+
+    // Handle Alt + Arrow key combinations for keyboard navigation
+    if (event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+      console.log("h")
+      switch (event.key) {
+        case "ArrowUp":
+          event.preventDefault();
+          handleKeyboardNavigation('up');
+          return;
+        case "ArrowDown":
+          event.preventDefault();
+          handleKeyboardNavigation('down');
+          return;
+        case "ArrowLeft":
+          event.preventDefault();
+          handleKeyboardNavigation('left');
+          return;
+        case "ArrowRight":
+          event.preventDefault();
+          handleKeyboardNavigation('right');
+          return;
+      }
+    }
+
     if (event.key === "Alt" && !LocatorState.altPressed) {
       // Alt key pressed for the first time - immediately trigger overlay at current mouse position
       LocatorState.setAltPressed(true);
@@ -925,6 +1312,7 @@
   function handleKeyUp(event) {
     if (event.key === "Alt") {
       LocatorState.setAltPressed(false);
+      LocatorState.setKeyboardNavigationActive(false);
       LocatorState.hideOverlay();
       LocatorState.hideParentTooltip();
       LocatorState.parentTooltipToggled = false; // Reset toggle state
@@ -951,7 +1339,20 @@
     LocatorState.updateMousePosition(event.clientX, event.clientY);
 
     if (LocatorState.altPressed) {
+      // Switch back to mouse navigation mode when mouse moves during Alt press
+      const wasKeyboardMode = LocatorState.navigationMode === 'keyboard';
+      if (wasKeyboardMode) {
+        LocatorState.setKeyboardNavigationActive(false);
+      }
+
       renderLocatorOverlay(event);
+
+      // If we just switched from keyboard to mouse mode, force a re-render
+      // to ensure the styling updates immediately
+      if (wasKeyboardMode && LocatorState.currentTargetElement) {
+        updateOverlayPosition(LocatorState.currentTargetElement);
+      }
+
       // Check if we should auto-show parent tooltip after the main tooltip is positioned
       setTimeout(() => {
         checkAutoShowParentTooltip();
