@@ -878,6 +878,7 @@
    * @param {KeyboardEvent} event - Keyboard event
    */
   function handleKeyDown(event) {
+    console.log("keydown", event.key);
     if (event.key === "Alt" && !LocatorState.altPressed) {
       // Alt key pressed for the first time - immediately trigger overlay at current mouse position
       LocatorState.setAltPressed(true);
