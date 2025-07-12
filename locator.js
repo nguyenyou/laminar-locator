@@ -19,6 +19,79 @@
   'use strict';
 
   // ============================================================================
+  // UICOMPONENT LOCATOR PROPERTY CONSTANTS
+  // ============================================================================
+
+  /**
+   * UIComponent Locator Property Constants
+   *
+   * Centralized definition of all UIComponent locator property names.
+   * This provides a single point of maintenance when property names need to be updated.
+   */
+  const LOCATOR_PROPERTIES = {
+    /** Source path property for UIComponent elements */
+    SCALA_SOURCE_PATH: '__scalasourcepath',
+
+    /** Filename property for UIComponent elements */
+    SCALA_FILENAME: '__scalafilename',
+
+    /** Source line property for UIComponent elements */
+    SCALA_SOURCE_LINE: '__scalasourceline'
+  };
+
+  /**
+   * Helper functions for UIComponent property access
+   */
+  const PropertyAccessor = {
+    /**
+     * Check if element has the source path property
+     * @param {Element} element - Element to check
+     * @returns {boolean} True if element has source path property
+     */
+    hasSourcePath(element) {
+      return Object.hasOwn(element, LOCATOR_PROPERTIES.SCALA_SOURCE_PATH);
+    },
+
+    /**
+     * Get source path from element
+     * @param {Element} element - Element to get source path from
+     * @returns {string|undefined} Source path or undefined
+     */
+    getSourcePath(element) {
+      return element[LOCATOR_PROPERTIES.SCALA_SOURCE_PATH];
+    },
+
+    /**
+     * Get filename from element
+     * @param {Element} element - Element to get filename from
+     * @returns {string|undefined} Filename or undefined
+     */
+    getFilename(element) {
+      return element[LOCATOR_PROPERTIES.SCALA_FILENAME];
+    },
+
+    /**
+     * Get source line from element
+     * @param {Element} element - Element to get source line from
+     * @returns {string|undefined} Source line or undefined
+     */
+    getSourceLine(element) {
+      return element[LOCATOR_PROPERTIES.SCALA_SOURCE_LINE];
+    },
+
+    /**
+     * Check if element has all required locator properties
+     * @param {Element} element - Element to validate
+     * @returns {boolean} True if element has all required properties
+     */
+    hasAllProperties(element) {
+      return this.getSourcePath(element) &&
+             this.getFilename(element) &&
+             this.getSourceLine(element);
+    }
+  };
+
+  // ============================================================================
   // CSS CUSTOM PROPERTIES INJECTION
   // ============================================================================
 
@@ -206,23 +279,9 @@
     "windsurf": "windsurf://file/",
   };
 
-
-
-
-
-
-
-
-
   // Performance constants
   const MOUSEMOVE_THROTTLE_DELAY = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--locator-throttle-delay')) || 50; // ms
   const DEBOUNCE_DELAY = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--locator-debounce-delay')) || 100; // ms for debouncing rapid state changes
-
-
-
-  // ============================================================================
-  // CLASS-BASED ARCHITECTURE
-  // ============================================================================
 
   /**
    * State management class with observer pattern for reactive updates
@@ -627,11 +686,7 @@
       }
 
       // Validate required properties
-      const scalasourcepath = targetElement.__scalasourcepath;
-      const scalafilename = targetElement.__scalafilename;
-      const scalasourceline = targetElement.__scalasourceline;
-
-      if (!scalasourcepath || !scalafilename || !scalasourceline) {
+      if (!PropertyAccessor.hasAllProperties(targetElement)) {
         this.hide();
         return;
       }
@@ -797,9 +852,9 @@
       try {
         const targetElement = this.state.currentTargetElement;
 
-        if (targetElement && targetElement.__scalasourcepath) {
-          const sourcePath = targetElement.__scalasourcepath;
-          const sourceLine = targetElement.__scalasourceline;
+        if (targetElement && PropertyAccessor.hasSourcePath(targetElement)) {
+          const sourcePath = PropertyAccessor.getSourcePath(targetElement);
+          const sourceLine = PropertyAccessor.getSourceLine(targetElement);
 
           openFileAtSourcePath(sourcePath, sourceLine);
           this.state.reset();
@@ -951,8 +1006,8 @@
         return;
       }
 
-      const scalafilename = targetElement.__scalafilename;
-      const scalasourceline = targetElement.__scalasourceline;
+      const scalafilename = PropertyAccessor.getFilename(targetElement);
+      const scalasourceline = PropertyAccessor.getSourceLine(targetElement);
 
       if (!scalafilename || !scalasourceline) {
         this.hideMain();
@@ -1369,8 +1424,8 @@
         return;
       }
 
-      const scalasourcepath = targetElement.__scalasourcepath;
-      const scalasourceline = targetElement.__scalasourceline;
+      const scalasourcepath = PropertyAccessor.getSourcePath(targetElement);
+      const scalasourceline = PropertyAccessor.getSourceLine(targetElement);
 
       if (!scalasourcepath) {
         return;
@@ -1475,7 +1530,7 @@
       let element = currentElement.parentElement;
 
       while (element && element !== document.body) {
-        if (Object.hasOwn(element, "__scalasourcepath")) {
+        if (PropertyAccessor.hasSourcePath(element)) {
           return element;
         }
         element = element.parentElement;
@@ -1500,7 +1555,7 @@
               return NodeFilter.FILTER_SKIP;
             }
 
-            if (Object.hasOwn(node, "__scalasourcepath")) {
+            if (PropertyAccessor.hasSourcePath(node)) {
               return NodeFilter.FILTER_ACCEPT;
             }
 
@@ -1516,7 +1571,7 @@
         let isDirectChild = true;
 
         while (ancestor && ancestor !== currentElement) {
-          if (Object.hasOwn(ancestor, "__scalasourcepath")) {
+          if (PropertyAccessor.hasSourcePath(ancestor)) {
             isDirectChild = false;
             break;
           }
@@ -1556,11 +1611,11 @@
         NodeFilter.SHOW_ELEMENT,
         {
           acceptNode: function(node) {
-            if (Object.hasOwn(node, "__scalasourcepath")) {
+            if (PropertyAccessor.hasSourcePath(node)) {
               // Check if has parent with source path
               let parent = node.parentElement;
               while (parent && parent !== document.body) {
-                if (Object.hasOwn(parent, "__scalasourcepath")) {
+                if (PropertyAccessor.hasSourcePath(parent)) {
                   return NodeFilter.FILTER_REJECT;
                 }
                 parent = parent.parentElement;
@@ -1588,7 +1643,7 @@
       const components = [];
 
       const traverseDepthFirst = (element) => {
-        if (Object.hasOwn(element, "__scalasourcepath")) {
+        if (PropertyAccessor.hasSourcePath(element)) {
           components.push(element);
         }
 
@@ -2254,7 +2309,7 @@
           childList: true,
           subtree: true,
           attributes: true,
-          attributeFilter: ['data-source-path', '__scalasourcepath']
+          attributeFilter: ['data-source-path', LOCATOR_PROPERTIES.SCALA_SOURCE_PATH]
         });
       }
     }
@@ -3589,9 +3644,9 @@
         shiftPressed: this.state.shiftPressed,
         navigationMode: this.state.navigationMode,
         currentTarget: this.state.currentTargetElement ? {
-          filename: this.state.currentTargetElement.__scalafilename,
-          line: this.state.currentTargetElement.__scalasourceline,
-          path: this.state.currentTargetElement.__scalasourcepath
+          filename: PropertyAccessor.getFilename(this.state.currentTargetElement),
+          line: PropertyAccessor.getSourceLine(this.state.currentTargetElement),
+          path: PropertyAccessor.getSourcePath(this.state.currentTargetElement)
         } : null,
         overlayVisible: this.overlay.isVisible,
         tooltipVisible: this.tooltip.isMainVisible,
@@ -3605,7 +3660,7 @@
      * @param {Element} element - Target element
      */
     showOverlayForElement(element) {
-      if (!element || !element.__scalasourcepath) {
+      if (!element || !PropertyAccessor.hasSourcePath(element)) {
         console.warn('Invalid element for overlay');
         return;
       }
@@ -3649,9 +3704,9 @@
     getAllComponents() {
       return this.keyboard.getAllComponentsInOrder().map(element => ({
         element,
-        filename: element.__scalafilename,
-        line: element.__scalasourceline,
-        path: element.__scalasourcepath
+        filename: PropertyAccessor.getFilename(element),
+        line: PropertyAccessor.getSourceLine(element),
+        path: PropertyAccessor.getSourcePath(element)
       }));
     }
 
@@ -3797,14 +3852,14 @@
   /**
    * Find the nearest parent element with Scala source path information
    * @param {Element} startElement - Element to start searching from
-   * @returns {Element|null} Element with __scalasourcepath property or null
+   * @returns {Element|null} Element with source path property or null
    */
   function findLocatorElement(startElement) {
     let element = startElement;
 
-    // Traverse up the DOM tree to find an element with __scalasourcepath
+    // Traverse up the DOM tree to find an element with source path property
     while (element && element !== document.body) {
-      if (Object.hasOwn(element, "__scalasourcepath")) {
+      if (PropertyAccessor.hasSourcePath(element)) {
         return element;
       }
       element = element.parentElement;
@@ -3840,9 +3895,9 @@
     let level = 1;
 
     while (element && element !== document.body && parents.length < maxCount) {
-      if (Object.hasOwn(element, "__scalasourcepath")) {
-        const filename = element.__scalafilename;
-        const line = element.__scalasourceline;
+      if (PropertyAccessor.hasSourcePath(element)) {
+        const filename = PropertyAccessor.getFilename(element);
+        const line = PropertyAccessor.getSourceLine(element);
 
         if (filename && line) {
           parents.push({
