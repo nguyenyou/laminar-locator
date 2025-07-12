@@ -25,36 +25,44 @@
     "windsurf": "windsurf://file/",
   };
 
-  // Overlay styling constants
+  // Overlay styling constants - consistent with modern design principles
   const OVERLAY_STYLES = {
-    backgroundColor: "rgba(0, 123, 255, 0.15)",
+    backgroundColor: "rgba(0, 123, 255, 0.12)",
     border: "2px solid #007bff",
-    borderRadius: "2px",
-    boxShadow: "0 0 0 1px rgba(255, 255, 255, 0.5), 0 2px 8px rgba(0, 0, 0, 0.15)",
+    borderRadius: "6px", // Consistent rounded corners
+    boxShadow: "0 0 0 1px rgba(255, 255, 255, 0.6), 0 4px 16px rgba(0, 123, 255, 0.25), 0 2px 8px rgba(0, 0, 0, 0.1)",
     zIndex: "9999",
-    transition: "all 0.1s ease-out",
-    elementOffset: 8, // Offset around target elements
+    transition: "all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+    elementOffset: 6, // Consistent with card padding
 
-    // Keyboard navigation specific styles
+    // Enhanced visual states
+    hover: {
+      backgroundColor: "rgba(0, 123, 255, 0.18)",
+      boxShadow: "0 0 0 1px rgba(255, 255, 255, 0.7), 0 6px 20px rgba(0, 123, 255, 0.35), 0 3px 12px rgba(0, 0, 0, 0.15)",
+      transform: "scale(1.02)",
+    },
+
+    // Keyboard navigation specific styles - harmonious orange theme
     keyboard: {
-      backgroundColor: "rgba(255, 165, 0, 0.2)", // Orange background for keyboard selection
-      border: "3px solid #ff8c00", // Thicker orange border
-      boxShadow: "0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 12px rgba(255, 140, 0, 0.6)", // More prominent glow
+      backgroundColor: "rgba(255, 140, 0, 0.15)",
+      border: "3px solid #ff8c00",
+      boxShadow: "0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 16px rgba(255, 140, 0, 0.5), 0 4px 20px rgba(255, 140, 0, 0.3)",
+      borderRadius: "8px", // Slightly more rounded for keyboard mode distinction
     }
   };
 
-  // Navigation indicator styling constants
+  // Navigation indicator styling constants (no animations)
   const NAVIGATION_INDICATOR_STYLES = {
-    size: 20, // Size of arrow indicators
-    offset: 4, // Distance from overlay edge
-    backgroundColor: "rgba(255, 140, 0, 0.9)",
+    size: 24, // Slightly larger for better visibility
+    offset: 6, // Increased distance from overlay edge
+    backgroundColor: "rgba(255, 140, 0, 0.95)",
     color: "white",
     borderRadius: "50%",
-    fontSize: "12px",
-    fontWeight: "bold",
-    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
+    fontSize: "13px",
+    fontWeight: "600",
+    boxShadow: "0 3px 12px rgba(255, 140, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.3)",
     zIndex: "10001", // Above overlay
-    transition: "all 0.2s ease-out",
+    border: "2px solid rgba(255, 255, 255, 0.9)",
 
     // Different styles for different directions
     directions: {
@@ -67,44 +75,89 @@
 
   // Visual feedback animation constants
   const VISUAL_FEEDBACK_STYLES = {
-    // Bounce animation for navigation indicators
+    // Enhanced bounce animation for navigation indicators
     bounce: {
-      duration: 300, // ms
-      distance: 8, // pixels to move
-      easing: "cubic-bezier(0.68, -0.55, 0.265, 1.55)"
+      duration: 350, // Slightly longer for smoother feel
+      distance: 10, // Increased distance for more noticeable effect
+      easing: "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+      returnDuration: 200, // Faster return for snappier feel
     },
 
-    // Scale animation for overlay selection
+    // Enhanced scale animation for overlay selection
     scale: {
-      duration: 250, // ms
-      maxScale: 1.08,
-      easing: "cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+      duration: 280, // Slightly longer for smoother scaling
+      maxScale: 1.06, // Reduced scale for more subtle effect
+      easing: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+      returnDuration: 200,
     },
 
-    // Pulse animation for boundary navigation
+    // Enhanced pulse animation for boundary navigation
     pulse: {
-      duration: 400, // ms
+      duration: 500, // Longer duration for more noticeable effect
       iterations: 2,
-      easing: "ease-in-out"
+      easing: "cubic-bezier(0.4, 0, 0.6, 1)",
+      intensity: 1.3, // Multiplier for pulse effect intensity
+    },
+
+    // New shimmer animation for initial appearance
+    shimmer: {
+      duration: 600,
+      easing: "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+    },
+
+    // Enhanced error animation (shake)
+    error: {
+      duration: 300,
+      distance: 4,
+      iterations: 3,
+      easing: "cubic-bezier(0.36, 0.07, 0.19, 0.97)",
     }
   };
 
-  // Tooltip styling constants
+  // Tooltip styling constants - consistent with system design
   const TOOLTIP_STYLES = {
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    backgroundColor: "rgba(0, 0, 0, 0.92)",
     color: "white",
-    padding: "8px 12px",
-    borderRadius: "4px",
+    padding: "10px 14px", // Consistent with card padding scale
+    borderRadius: "6px", // Matches overlay border radius
     fontSize: "12px",
-    fontFamily: "monospace",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
-    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+    fontFamily: "ui-monospace, 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace",
+    border: "1px solid rgba(255, 255, 255, 0.25)",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)",
     zIndex: "10000",
-    margin: 8, // Margin from viewport edges
+    margin: 10, // Consistent spacing
+    backdropFilter: "blur(8px)", // Modern backdrop blur effect
+    lineHeight: "1.4", // Comfortable reading
+
+    // Enhanced visual states for keyboard mode
+    keyboard: {
+      backgroundColor: "rgba(20, 20, 20, 0.95)",
+      border: "1px solid rgba(255, 140, 0, 0.3)",
+      boxShadow: "0 6px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 140, 0, 0.2)",
+      borderRadius: "8px", // Slightly more rounded to match keyboard overlay
+    }
   };
 
   // Performance constants
   const MOUSEMOVE_THROTTLE_DELAY = 50; // ms
+  const ANIMATION_FRAME_THROTTLE_DELAY = 16; // ~60fps
+  const DEBOUNCE_DELAY = 100; // ms for debouncing rapid state changes
+
+  // Status indicator styling constants - consistent with tooltip design
+  const STATUS_INDICATOR_STYLES = {
+    backgroundColor: "rgba(0, 0, 0, 0.88)",
+    color: "white",
+    padding: "8px 16px", // Slightly larger for better readability
+    borderRadius: "20px", // Pill-shaped for modern look
+    fontSize: "11px",
+    fontFamily: "system-ui, -apple-system, sans-serif", // System font for UI elements
+    fontWeight: "500",
+    border: "1px solid rgba(255, 255, 255, 0.2)",
+    boxShadow: "0 4px 16px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2)",
+    zIndex: "10002", // Above navigation indicators
+    transition: "all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+    backdropFilter: "blur(12px)", // Enhanced blur for better readability
+  };
 
   // ============================================================================
   // STATE MANAGEMENT
@@ -119,6 +172,7 @@
     overlayDiv: null,
     tooltipDiv: null,
     parentTooltipDiv: null,
+    statusIndicatorDiv: null, // Status indicator for keyboard navigation
     navigationIndicators: {}, // Store navigation indicator elements by direction
 
     currentTargetElement: null,
@@ -212,15 +266,33 @@
     },
 
     /**
-     * Hide overlay and tooltip
+     * Hide overlay and tooltip with smooth exit animations
      */
     hideOverlay() {
-      if (this.overlayDiv) {
-        this.overlayDiv.style.display = "none";
+      if (this.overlayDiv && this.overlayDiv.style.display !== "none") {
+        // Fade out overlay
+        this.overlayDiv.style.transition = "opacity 0.15s ease-out, transform 0.15s ease-out";
+        this.overlayDiv.style.opacity = "0";
+        this.overlayDiv.style.transform = "scale(0.95)";
+
+        setTimeout(() => {
+          this.overlayDiv.style.display = "none";
+          this.overlayDiv.style.opacity = "1";
+          this.overlayDiv.style.transform = "scale(1)";
+          this.overlayDiv.style.transition = OVERLAY_STYLES.transition;
+        }, 150);
       }
-      if (this.tooltipDiv) {
-        this.tooltipDiv.style.display = "none";
+
+      if (this.tooltipDiv && this.tooltipDiv.style.display !== "none") {
+        // Fade out tooltip
+        this.tooltipDiv.style.opacity = "0";
+        this.tooltipDiv.style.transform = "translateY(4px)";
+
+        setTimeout(() => {
+          this.tooltipDiv.style.display = "none";
+        }, 150);
       }
+
       this.hideNavigationIndicators();
     },
 
@@ -235,7 +307,7 @@
     },
 
     /**
-     * Hide all navigation indicators
+     * Hide all navigation indicators instantly (no animations)
      */
     hideNavigationIndicators() {
       Object.values(this.navigationIndicators).forEach(indicator => {
@@ -265,6 +337,47 @@
         fn(...args);
       }
     };
+  }
+
+  /**
+   * Debounce function to delay execution until after calls have stopped
+   * @param {Function} fn - Function to debounce
+   * @param {number} delay - Delay in milliseconds
+   * @returns {Function} Debounced function
+   */
+  function debounce(fn, delay) {
+    let timeoutId;
+    return (...args) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => fn(...args), delay);
+    };
+  }
+
+  /**
+   * Request animation frame throttle for smooth animations
+   * @param {Function} fn - Function to throttle
+   * @returns {Function} RAF-throttled function
+   */
+  function rafThrottle(fn) {
+    let rafId = null;
+    return (...args) => {
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          fn(...args);
+          rafId = null;
+        });
+      }
+    };
+  }
+
+  /**
+   * Batch DOM operations to reduce reflows
+   * @param {Function} fn - Function containing DOM operations
+   */
+  function batchDOMOperations(fn) {
+    requestAnimationFrame(() => {
+      fn();
+    });
   }
 
   /**
@@ -512,20 +625,24 @@
   }
 
   /**
-   * Handle keyboard navigation based on arrow key direction
+   * Handle enhanced keyboard navigation with improved feedback
    * @param {string} direction - 'up', 'down', 'left', 'right'
    */
   function handleKeyboardNavigation(direction) {
     let targetElement = null;
     const currentElement = LocatorState.keyboardSelectedElement || LocatorState.currentTargetElement;
     let isBoundaryNavigation = false;
+    let statusMessage = "";
 
     if (!currentElement) {
       // No current element, start with first top-level component
       const topLevel = findTopLevelComponents();
       if (topLevel.length > 0) {
         targetElement = topLevel[0];
+        statusMessage = "Started keyboard navigation";
+        showStatusIndicator(statusMessage, 1500);
       } else {
+        showStatusIndicator("No components found", 2000);
         return;
       }
     } else {
@@ -534,23 +651,40 @@
       switch (direction) {
         case 'up':
           targetElement = navigateToParent(currentElement);
-          isBoundaryNavigation = !context.hasParent; // Cycling to deepest
+          isBoundaryNavigation = !context.hasParent;
+          statusMessage = isBoundaryNavigation ?
+            "Cycled to deepest component" :
+            `Moved to parent: ${targetElement.__scalafilename}:${targetElement.__scalasourceline}`;
           break;
         case 'down':
           targetElement = navigateToFirstChild(currentElement);
-          isBoundaryNavigation = !context.hasChildren; // Cycling to first
+          isBoundaryNavigation = !context.hasChildren;
+          statusMessage = isBoundaryNavigation ?
+            "Cycled to first component" :
+            `Moved to child: ${targetElement.__scalafilename}:${targetElement.__scalasourceline}`;
           break;
         case 'left':
           targetElement = navigateToPreviousSibling(currentElement);
-          // Boundary navigation occurs when there are no siblings or at first position
           isBoundaryNavigation = context.siblingCount === 0 || context.siblingPosition === 1;
+          if (context.siblingCount === 0) {
+            statusMessage = "No siblings available";
+          } else {
+            statusMessage = isBoundaryNavigation ?
+              "Cycled to last sibling" :
+              `Previous sibling (${context.siblingPosition - 1}/${context.siblingCount + 1})`;
+          }
           break;
         case 'right':
           targetElement = navigateToNextSibling(currentElement);
-          // Boundary navigation occurs when there are no siblings or at last position
-          // Total siblings = siblingCount + 1 (including current element)
           isBoundaryNavigation = context.siblingCount === 0 ||
             context.siblingPosition === (context.siblingCount + 1);
+          if (context.siblingCount === 0) {
+            statusMessage = "No siblings available";
+          } else {
+            statusMessage = isBoundaryNavigation ?
+              "Cycled to first sibling" :
+              `Next sibling (${context.siblingPosition + 1}/${context.siblingCount + 1})`;
+          }
           break;
       }
     }
@@ -559,6 +693,11 @@
       LocatorState.setKeyboardSelectedElement(targetElement);
       updateOverlayPosition(targetElement);
 
+      // Show status message for successful navigation
+      if (statusMessage && !statusMessage.includes("Cycled")) {
+        showStatusIndicator(statusMessage, 1500);
+      }
+
       // Provide visual feedback
       if (isBoundaryNavigation) {
         triggerVisualFeedback('boundary', direction);
@@ -566,18 +705,19 @@
         triggerVisualFeedback('navigate', direction);
       }
     } else {
+      showStatusIndicator("Navigation failed", 2000);
       triggerVisualFeedback('error', direction);
     }
   }
 
   /**
-   * Handle Enter key press to open selected component file in keyboard navigation mode
+   * Handle Enter key press to open selected component file with enhanced feedback
    */
   function handleKeyboardFileOpen() {
     const targetElement = LocatorState.keyboardSelectedElement || LocatorState.currentTargetElement;
 
     if (!targetElement) {
-      // No element selected, trigger error feedback
+      showStatusIndicator("No component selected", 2000);
       triggerVisualFeedback('error', 'enter');
       return;
     }
@@ -585,14 +725,18 @@
     // Validate required properties
     const scalasourcepath = targetElement.__scalasourcepath;
     const scalasourceline = targetElement.__scalasourceline;
+    const scalafilename = targetElement.__scalafilename;
 
     if (!scalasourcepath) {
-      // Invalid element, trigger error feedback
+      showStatusIndicator("Invalid component - no source path", 2000);
       triggerVisualFeedback('error', 'enter');
       return;
     }
 
     try {
+      // Show opening status
+      showStatusIndicator(`Opening ${scalafilename}:${scalasourceline}...`, 1000);
+
       // Trigger visual feedback to indicate action
       triggerScaleAnimation();
 
@@ -600,9 +744,12 @@
       openFileAtSourcePath(scalasourcepath, scalasourceline);
 
       // Exit locator mode after successful file opening
-      LocatorState.reset();
+      setTimeout(() => {
+        LocatorState.reset();
+      }, 300); // Small delay to show the feedback
     } catch (error) {
       console.error("Error opening file from keyboard navigation:", error);
+      showStatusIndicator("Failed to open file", 2000);
       triggerVisualFeedback('error', 'enter');
     }
   }
@@ -870,9 +1017,31 @@
       zIndex: OVERLAY_STYLES.zIndex,
       display: "none",
       boxSizing: "border-box",
-      transition: OVERLAY_STYLES.transition + ", transform 0.2s ease-out",
+      transition: OVERLAY_STYLES.transition + ", transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
       cursor: "pointer",
       transform: "scale(1)", // Initialize transform for animations
+      willChange: "transform, box-shadow", // Optimize for animations
+    });
+
+    // Add enhanced hover effects
+    div.addEventListener("mouseenter", () => {
+      if (LocatorState.navigationMode === 'mouse') {
+        Object.assign(div.style, {
+          backgroundColor: OVERLAY_STYLES.hover.backgroundColor,
+          boxShadow: OVERLAY_STYLES.hover.boxShadow,
+          transform: OVERLAY_STYLES.hover.transform,
+        });
+      }
+    });
+
+    div.addEventListener("mouseleave", () => {
+      if (LocatorState.navigationMode === 'mouse') {
+        Object.assign(div.style, {
+          backgroundColor: OVERLAY_STYLES.backgroundColor,
+          boxShadow: OVERLAY_STYLES.boxShadow,
+          transform: "scale(1)",
+        });
+      }
     });
 
     // Add click event listener
@@ -893,7 +1062,7 @@
     // Apply base styles
     Object.assign(tooltip.style, {
       position: "fixed",
-      pointerEvents: "none", // Changed back to none since we're using keyboard interaction
+      pointerEvents: "none",
       backgroundColor: TOOLTIP_STYLES.backgroundColor,
       color: TOOLTIP_STYLES.color,
       padding: TOOLTIP_STYLES.padding,
@@ -906,7 +1075,12 @@
       zIndex: TOOLTIP_STYLES.zIndex,
       display: "none",
       boxSizing: "border-box",
-      transition: "all 0.1s ease-out",
+      transition: "all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+      backdropFilter: TOOLTIP_STYLES.backdropFilter,
+      lineHeight: TOOLTIP_STYLES.lineHeight,
+      willChange: "transform, opacity", // Optimize for animations
+      opacity: "0",
+      transform: "translateY(4px)", // Initial position for entrance animation
     });
 
     document.body.appendChild(tooltip);
@@ -957,7 +1131,7 @@
     const directionInfo = NAVIGATION_INDICATOR_STYLES.directions[direction];
     const size = NAVIGATION_INDICATOR_STYLES.size;
 
-    // Apply base styles
+    // Apply base styles with perfect centering and no animations
     Object.assign(indicator.style, {
       position: "fixed",
       width: `${size}px`,
@@ -968,16 +1142,17 @@
       fontSize: NAVIGATION_INDICATOR_STYLES.fontSize,
       fontWeight: NAVIGATION_INDICATOR_STYLES.fontWeight,
       boxShadow: NAVIGATION_INDICATOR_STYLES.boxShadow,
+      border: NAVIGATION_INDICATOR_STYLES.border,
       zIndex: NAVIGATION_INDICATOR_STYLES.zIndex,
       display: "none",
       boxSizing: "border-box",
-      transition: NAVIGATION_INDICATOR_STYLES.transition + ", transform 0.2s ease-out",
       cursor: "pointer",
       userSelect: "none",
-      textAlign: "center",
-      lineHeight: `${size}px`,
+      // Perfect centering for arrow symbols
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
       pointerEvents: "none", // Don't interfere with overlay clicks
-      transform: "translate(0, 0)", // Initialize transform for animations
     });
 
     // Set the arrow symbol
@@ -985,6 +1160,87 @@
 
     document.body.appendChild(indicator);
     return indicator;
+  }
+
+  /**
+   * Create the status indicator element for keyboard navigation feedback
+   * @returns {HTMLDivElement} Created status indicator element
+   */
+  function createStatusIndicator() {
+    const indicator = document.createElement("div");
+    indicator.id = "locator-status-indicator";
+
+    // Apply base styles
+    Object.assign(indicator.style, {
+      position: "fixed",
+      top: "20px",
+      right: "20px",
+      backgroundColor: STATUS_INDICATOR_STYLES.backgroundColor,
+      color: STATUS_INDICATOR_STYLES.color,
+      padding: STATUS_INDICATOR_STYLES.padding,
+      borderRadius: STATUS_INDICATOR_STYLES.borderRadius,
+      fontSize: STATUS_INDICATOR_STYLES.fontSize,
+      fontFamily: STATUS_INDICATOR_STYLES.fontFamily,
+      fontWeight: STATUS_INDICATOR_STYLES.fontWeight,
+      border: STATUS_INDICATOR_STYLES.border,
+      boxShadow: STATUS_INDICATOR_STYLES.boxShadow,
+      zIndex: STATUS_INDICATOR_STYLES.zIndex,
+      display: "none",
+      boxSizing: "border-box",
+      transition: STATUS_INDICATOR_STYLES.transition,
+      backdropFilter: STATUS_INDICATOR_STYLES.backdropFilter,
+      pointerEvents: "none",
+      userSelect: "none",
+      opacity: "0",
+      transform: "translateY(-10px)",
+      willChange: "transform, opacity",
+    });
+
+    document.body.appendChild(indicator);
+    return indicator;
+  }
+
+  /**
+   * Show status indicator with message
+   * @param {string} message - Status message to display
+   * @param {number} duration - Duration to show in milliseconds (optional)
+   */
+  function showStatusIndicator(message, duration = 2000) {
+    if (!LocatorState.statusIndicatorDiv) {
+      LocatorState.statusIndicatorDiv = createStatusIndicator();
+    }
+
+    const indicator = LocatorState.statusIndicatorDiv;
+    indicator.textContent = message;
+    indicator.style.display = "block";
+
+    // Animate in
+    requestAnimationFrame(() => {
+      indicator.style.opacity = "1";
+      indicator.style.transform = "translateY(0)";
+    });
+
+    // Auto-hide after duration
+    if (duration > 0) {
+      setTimeout(() => {
+        hideStatusIndicator();
+      }, duration);
+    }
+  }
+
+  /**
+   * Hide status indicator
+   */
+  function hideStatusIndicator() {
+    if (!LocatorState.statusIndicatorDiv) return;
+
+    const indicator = LocatorState.statusIndicatorDiv;
+    indicator.style.opacity = "0";
+    indicator.style.transform = "translateY(-10px)";
+
+    setTimeout(() => {
+      indicator.style.display = "none";
+    }, 200);
   }
 
 
@@ -1015,73 +1271,52 @@
   }
 
   /**
-   * Trigger bounce animation for navigation indicator
+   * Trigger bounce animation for navigation indicator (static - no animation)
    * @param {string} direction - Direction of navigation
    */
   function triggerBounceAnimation(direction) {
-    const indicator = LocatorState.navigationIndicators[direction];
-    if (!indicator || indicator.style.display === 'none') return;
-
-    const bounce = VISUAL_FEEDBACK_STYLES.bounce;
-    const originalTransform = indicator.style.transform || '';
-
-    // Calculate bounce direction
-    let bounceTransform;
-    switch (direction) {
-      case 'up':
-        bounceTransform = `translateY(-${bounce.distance}px)`;
-        break;
-      case 'down':
-        bounceTransform = `translateY(${bounce.distance}px)`;
-        break;
-      case 'left':
-        bounceTransform = `translateX(-${bounce.distance}px)`;
-        break;
-      case 'right':
-        bounceTransform = `translateX(${bounce.distance}px)`;
-        break;
-      default:
-        return;
-    }
-
-    // Apply bounce animation
-    indicator.style.transition = `transform ${bounce.duration}ms ${bounce.easing}`;
-    indicator.style.transform = bounceTransform;
-
-    // Return to original position
-    setTimeout(() => {
-      indicator.style.transform = originalTransform;
-      setTimeout(() => {
-        indicator.style.transition = NAVIGATION_INDICATOR_STYLES.transition;
-      }, bounce.duration);
-    }, bounce.duration / 2);
+    // Navigation indicators are now static - no bounce animation
+    // This function is kept for compatibility but does nothing
+    // eslint-disable-next-line no-unused-vars
+    void direction;
+    return;
   }
 
   /**
-   * Trigger scale animation for overlay selection
+   * Trigger enhanced scale animation for overlay selection
    */
   function triggerScaleAnimation() {
     const overlay = LocatorState.overlayDiv;
     if (!overlay || overlay.style.display === 'none') return;
 
     const scale = VISUAL_FEEDBACK_STYLES.scale;
-    const originalTransform = overlay.style.transform || '';
+    const originalTransform = overlay.style.transform || 'scale(1)';
+    const originalBoxShadow = overlay.style.boxShadow;
 
-    // Apply scale animation
-    overlay.style.transition = `transform ${scale.duration}ms ${scale.easing}`;
-    overlay.style.transform = `scale(${scale.maxScale})`;
+    // Apply enhanced scale animation with glow effect
+    Object.assign(overlay.style, {
+      transition: `transform ${scale.duration}ms ${scale.easing}, box-shadow ${scale.duration}ms ease-out`,
+      transform: `scale(${scale.maxScale})`,
+      boxShadow: originalBoxShadow + ', 0 0 20px rgba(0, 123, 255, 0.4)',
+    });
 
-    // Return to original scale
+    // Return to original scale with faster return
     setTimeout(() => {
-      overlay.style.transform = originalTransform;
+      Object.assign(overlay.style, {
+        transition: `transform ${scale.returnDuration}ms cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow ${scale.returnDuration}ms ease-out`,
+        transform: originalTransform,
+        boxShadow: originalBoxShadow,
+      });
+
+      // Reset transition after animation completes
       setTimeout(() => {
         overlay.style.transition = OVERLAY_STYLES.transition;
-      }, scale.duration);
+      }, scale.returnDuration);
     }, scale.duration / 2);
   }
 
   /**
-   * Trigger pulse animation for boundary navigation
+   * Trigger enhanced pulse animation for boundary navigation
    */
   function triggerPulseAnimation() {
     const overlay = LocatorState.overlayDiv;
@@ -1089,23 +1324,36 @@
 
     const pulse = VISUAL_FEEDBACK_STYLES.pulse;
     const originalBoxShadow = overlay.style.boxShadow;
+    const originalTransform = overlay.style.transform || 'scale(1)';
 
-    // Create pulsing box shadow effect
-    const pulseBoxShadow = OVERLAY_STYLES.keyboard.boxShadow + ', 0 0 20px rgba(255, 140, 0, 0.8)';
+    // Create enhanced pulsing effect with scale and glow
+    const pulseBoxShadow = originalBoxShadow + `, 0 0 ${20 * pulse.intensity}px rgba(255, 140, 0, 0.6)`;
+    const pulseTransform = `scale(${1 + (0.05 * pulse.intensity)})`;
 
-    overlay.style.transition = `box-shadow ${pulse.duration / pulse.iterations}ms ${pulse.easing}`;
+    overlay.style.transition = `box-shadow ${pulse.duration / pulse.iterations}ms ${pulse.easing}, transform ${pulse.duration / pulse.iterations}ms ${pulse.easing}`;
 
     let iteration = 0;
     const pulseInterval = setInterval(() => {
       if (iteration % 2 === 0) {
-        overlay.style.boxShadow = pulseBoxShadow;
+        Object.assign(overlay.style, {
+          boxShadow: pulseBoxShadow,
+          transform: pulseTransform,
+        });
       } else {
-        overlay.style.boxShadow = originalBoxShadow;
+        Object.assign(overlay.style, {
+          boxShadow: originalBoxShadow,
+          transform: originalTransform,
+        });
       }
 
       iteration++;
       if (iteration >= pulse.iterations * 2) {
         clearInterval(pulseInterval);
+        // Ensure we end in the original state
+        Object.assign(overlay.style, {
+          boxShadow: originalBoxShadow,
+          transform: originalTransform,
+        });
         setTimeout(() => {
           overlay.style.transition = OVERLAY_STYLES.transition;
         }, pulse.duration / pulse.iterations);
@@ -1114,43 +1362,78 @@
   }
 
   /**
-   * Trigger error animation (subtle shake)
+   * Trigger enhanced error animation (subtle shake with visual feedback)
    * @param {string} direction - Direction context for the error (optional)
    */
   function triggerErrorAnimation(direction) {
     const overlay = LocatorState.overlayDiv;
     if (!overlay || overlay.style.display === 'none') return;
 
-    const originalTransform = overlay.style.transform || '';
-    const shakeDistance = 3;
-    const shakeDuration = 200;
+    const error = VISUAL_FEEDBACK_STYLES.error;
+    const originalTransform = overlay.style.transform || 'scale(1)';
+    const originalBorder = overlay.style.border;
 
-    overlay.style.transition = `transform ${shakeDuration / 4}ms ease-in-out`;
+    // Add error visual state
+    overlay.style.border = '2px solid rgba(220, 53, 69, 0.8)';
+    overlay.style.transition = `transform ${error.duration / error.iterations}ms ${error.easing}, border-color ${error.duration}ms ease-out`;
 
-    // Shake left and right for navigation errors, or up and down for enter key errors
-    if (direction === 'enter') {
-      // Vertical shake for Enter key errors
-      setTimeout(() => overlay.style.transform = `translateY(-${shakeDistance}px)`, 0);
-      setTimeout(() => overlay.style.transform = `translateY(${shakeDistance}px)`, shakeDuration / 4);
-      setTimeout(() => overlay.style.transform = `translateY(-${shakeDistance / 2}px)`, shakeDuration / 2);
-      setTimeout(() => overlay.style.transform = originalTransform, shakeDuration * 3 / 4);
-    } else {
-      // Horizontal shake for navigation errors
-      setTimeout(() => overlay.style.transform = `translateX(-${shakeDistance}px)`, 0);
-      setTimeout(() => overlay.style.transform = `translateX(${shakeDistance}px)`, shakeDuration / 4);
-      setTimeout(() => overlay.style.transform = `translateX(-${shakeDistance / 2}px)`, shakeDuration / 2);
-      setTimeout(() => overlay.style.transform = originalTransform, shakeDuration * 3 / 4);
-    }
+    let iteration = 0;
+    const shakeInterval = setInterval(() => {
+      let shakeTransform;
+
+      if (direction === 'enter') {
+        // Vertical shake for Enter key errors
+        const offset = (iteration % 2 === 0) ? -error.distance : error.distance;
+        shakeTransform = `translateY(${offset}px) scale(1)`;
+      } else {
+        // Horizontal shake for navigation errors
+        const offset = (iteration % 2 === 0) ? -error.distance : error.distance;
+        shakeTransform = `translateX(${offset}px) scale(1)`;
+      }
+
+      overlay.style.transform = shakeTransform;
+      iteration++;
+
+      if (iteration >= error.iterations) {
+        clearInterval(shakeInterval);
+        // Return to original state
+        Object.assign(overlay.style, {
+          transform: originalTransform,
+          border: originalBorder,
+          transition: OVERLAY_STYLES.transition,
+        });
+      }
+    }, error.duration / error.iterations);
+  }
+
+  /**
+   * Trigger shimmer animation for initial appearance
+   */
+  function triggerShimmerAnimation() {
+    const overlay = LocatorState.overlayDiv;
+    if (!overlay || overlay.style.display === 'none') return;
+
+    const shimmer = VISUAL_FEEDBACK_STYLES.shimmer;
+    const originalBoxShadow = overlay.style.boxShadow;
+
+    // Create shimmer effect
+    const shimmerBoxShadow = originalBoxShadow + ', 0 0 30px rgba(0, 123, 255, 0.5)';
+
+    overlay.style.transition = `box-shadow ${shimmer.duration}ms ${shimmer.easing}`;
+    overlay.style.boxShadow = shimmerBoxShadow;
 
     setTimeout(() => {
-      overlay.style.transition = OVERLAY_STYLES.transition;
-    }, shakeDuration);
+      overlay.style.boxShadow = originalBoxShadow;
+      setTimeout(() => {
+        overlay.style.transition = OVERLAY_STYLES.transition;
+      }, shimmer.duration / 2);
+    }, shimmer.duration / 2);
   }
 
 
 
   /**
-   * Initialize overlay and tooltip elements if they don't exist
+   * Initialize all overlay and UI elements if they don't exist
    */
   function initializeOverlayElements() {
     if (!LocatorState.overlayDiv) {
@@ -1161,6 +1444,9 @@
     }
     if (!LocatorState.parentTooltipDiv) {
       LocatorState.parentTooltipDiv = createParentTooltipElement();
+    }
+    if (!LocatorState.statusIndicatorDiv) {
+      LocatorState.statusIndicatorDiv = createStatusIndicator();
     }
 
     // Initialize navigation indicators
@@ -1294,7 +1580,7 @@
   }
 
   /**
-   * Update navigation indicators based on available directions
+   * Update navigation indicators with static positioning (no animations)
    * @param {Object} overlayPosition - Overlay position for indicator positioning
    * @param {Array} availableDirections - Array of available navigation directions
    */
@@ -1305,7 +1591,7 @@
     // Hide all indicators first
     LocatorState.hideNavigationIndicators();
 
-    // Show indicators for available directions
+    // Show indicators for available directions instantly
     availableDirections.forEach(direction => {
       const indicator = LocatorState.navigationIndicators[direction];
       if (!indicator) return;
@@ -1335,10 +1621,11 @@
       left = Math.max(0, Math.min(left, window.innerWidth - size));
       top = Math.max(0, Math.min(top, window.innerHeight - size));
 
+      // Set position and show immediately (no animations)
       Object.assign(indicator.style, {
         left: `${left}px`,
         top: `${top}px`,
-        display: "block"
+        display: "flex", // Use flex for perfect centering
       });
     });
   }
@@ -1392,39 +1679,52 @@
   }
 
   /**
-   * Apply calculated position styles to overlay element
+   * Apply calculated position styles to overlay element with enhanced visual effects and performance optimization
    * @param {Object} position - Position object with left, top, width, height
    */
   function applyOverlayStyles(position) {
     const isKeyboardMode = LocatorState.navigationMode === 'keyboard';
-    const styles = {
-      left: `${position.left}px`,
-      top: `${position.top}px`,
-      width: `${position.width}px`,
-      height: `${position.height}px`,
-      display: "block",
-    };
+    const overlay = LocatorState.overlayDiv;
+    const wasVisible = overlay.style.display === "block";
 
-    // Apply different visual styles based on navigation mode
-    if (isKeyboardMode) {
-      Object.assign(styles, {
-        backgroundColor: OVERLAY_STYLES.keyboard.backgroundColor,
-        border: OVERLAY_STYLES.keyboard.border,
-        boxShadow: OVERLAY_STYLES.keyboard.boxShadow,
-      });
-    } else {
-      Object.assign(styles, {
-        backgroundColor: OVERLAY_STYLES.backgroundColor,
-        border: OVERLAY_STYLES.border,
-        boxShadow: OVERLAY_STYLES.boxShadow,
-      });
-    }
+    // Batch DOM operations for better performance
+    batchDOMOperations(() => {
+      const styles = {
+        left: `${position.left}px`,
+        top: `${position.top}px`,
+        width: `${position.width}px`,
+        height: `${position.height}px`,
+        display: "block",
+      };
 
-    Object.assign(LocatorState.overlayDiv.style, styles);
+      // Apply different visual styles based on navigation mode
+      if (isKeyboardMode) {
+        Object.assign(styles, {
+          backgroundColor: OVERLAY_STYLES.keyboard.backgroundColor,
+          border: OVERLAY_STYLES.keyboard.border,
+          borderRadius: OVERLAY_STYLES.keyboard.borderRadius,
+          boxShadow: OVERLAY_STYLES.keyboard.boxShadow,
+        });
+      } else {
+        Object.assign(styles, {
+          backgroundColor: OVERLAY_STYLES.backgroundColor,
+          border: OVERLAY_STYLES.border,
+          borderRadius: OVERLAY_STYLES.borderRadius,
+          boxShadow: OVERLAY_STYLES.boxShadow,
+        });
+      }
+
+      Object.assign(overlay.style, styles);
+
+      // Trigger entrance animation for new overlays
+      if (!wasVisible) {
+        triggerShimmerAnimation();
+      }
+    });
   }
 
   /**
-   * Update tooltip content and position
+   * Update tooltip content and position with enhanced visual effects
    * @param {string} content - Tooltip text content
    * @param {Object} overlayPosition - Overlay position for tooltip positioning
    */
@@ -1432,6 +1732,7 @@
     const tooltip = LocatorState.tooltipDiv;
     const isKeyboardMode = LocatorState.navigationMode === 'keyboard';
     const currentElement = LocatorState.currentTargetElement;
+    const wasVisible = tooltip.style.display === "block" && tooltip.style.opacity !== "0";
 
     // Build enhanced tooltip content
     let tooltipContent = content;
@@ -1477,6 +1778,23 @@
       tooltipContent += " • Alt+↑↓←→ to navigate";
     }
 
+    // Apply enhanced styling based on mode
+    if (isKeyboardMode) {
+      Object.assign(tooltip.style, {
+        backgroundColor: TOOLTIP_STYLES.keyboard.backgroundColor,
+        border: TOOLTIP_STYLES.keyboard.border,
+        borderRadius: TOOLTIP_STYLES.keyboard.borderRadius,
+        boxShadow: TOOLTIP_STYLES.keyboard.boxShadow,
+      });
+    } else {
+      Object.assign(tooltip.style, {
+        backgroundColor: TOOLTIP_STYLES.backgroundColor,
+        border: TOOLTIP_STYLES.border,
+        borderRadius: TOOLTIP_STYLES.borderRadius,
+        boxShadow: TOOLTIP_STYLES.boxShadow,
+      });
+    }
+
     // Set content and make visible to measure dimensions
     tooltip.textContent = tooltipContent;
     tooltip.style.display = "block";
@@ -1508,6 +1826,23 @@
       left: `${tooltipPosition.left}px`,
       top: `${tooltipPosition.top}px`,
     });
+
+    // Trigger entrance animation for new tooltips
+    if (!wasVisible) {
+      // Start with entrance state
+      tooltip.style.opacity = "0";
+      tooltip.style.transform = "translateY(4px)";
+
+      // Animate to visible state
+      requestAnimationFrame(() => {
+        tooltip.style.opacity = "1";
+        tooltip.style.transform = "translateY(0)";
+      });
+    } else {
+      // Ensure visible state for existing tooltips
+      tooltip.style.opacity = "1";
+      tooltip.style.transform = "translateY(0)";
+    }
   }
 
   /**
@@ -1795,18 +2130,31 @@
       switch (event.key) {
         case "ArrowUp":
           event.preventDefault();
+          // Show keyboard navigation status if first time
+          if (!LocatorState.keyboardNavigationActive) {
+            showStatusIndicator("Keyboard navigation active", 1500);
+          }
           handleKeyboardNavigation('up');
           return;
         case "ArrowDown":
           event.preventDefault();
+          if (!LocatorState.keyboardNavigationActive) {
+            showStatusIndicator("Keyboard navigation active", 1500);
+          }
           handleKeyboardNavigation('down');
           return;
         case "ArrowLeft":
           event.preventDefault();
+          if (!LocatorState.keyboardNavigationActive) {
+            showStatusIndicator("Keyboard navigation active", 1500);
+          }
           handleKeyboardNavigation('left');
           return;
         case "ArrowRight":
           event.preventDefault();
+          if (!LocatorState.keyboardNavigationActive) {
+            showStatusIndicator("Keyboard navigation active", 1500);
+          }
           handleKeyboardNavigation('right');
           return;
       }
@@ -1884,7 +2232,7 @@
   }
 
   /**
-   * Handle mouse move events to update overlay position
+   * Handle mouse move events to update overlay position with performance optimization
    * @param {MouseEvent} event - Mouse event
    */
   function handleMouseMove(event) {
@@ -1898,18 +2246,21 @@
         LocatorState.setKeyboardNavigationActive(false);
       }
 
-      renderLocatorOverlay(event);
+      // Use RAF throttling for smooth overlay updates
+      rafThrottle(() => {
+        renderLocatorOverlay(event);
 
-      // If we just switched from keyboard to mouse mode, force a re-render
-      // to ensure the styling updates immediately
-      if (wasKeyboardMode && LocatorState.currentTargetElement) {
-        updateOverlayPosition(LocatorState.currentTargetElement);
-      }
+        // If we just switched from keyboard to mouse mode, force a re-render
+        // to ensure the styling updates immediately
+        if (wasKeyboardMode && LocatorState.currentTargetElement) {
+          updateOverlayPosition(LocatorState.currentTargetElement);
+        }
+      })();
 
-      // Check if we should auto-show parent tooltip after the main tooltip is positioned
-      setTimeout(() => {
+      // Debounce parent tooltip check to avoid excessive updates
+      debounce(() => {
         checkAutoShowParentTooltip();
-      }, 25);
+      }, DEBOUNCE_DELAY)();
     } else {
       LocatorState.hideOverlay();
       LocatorState.hideParentTooltip();
@@ -1940,7 +2291,7 @@
   // ============================================================================
 
   /**
-   * Initialize all event listeners
+   * Initialize all event listeners with performance optimizations
    */
   function initializeEventListeners() {
     // Keyboard event listeners
@@ -1950,11 +2301,25 @@
     // Window focus management
     window.addEventListener("blur", handleWindowBlur);
 
-    // Mouse movement with throttling for performance
-    window.addEventListener(
-      "mousemove",
-      throttle(handleMouseMove, MOUSEMOVE_THROTTLE_DELAY)
-    );
+    // Mouse movement with optimized throttling for performance
+    // Use both traditional throttling and RAF throttling for best performance
+    const optimizedMouseMove = throttle(handleMouseMove, MOUSEMOVE_THROTTLE_DELAY);
+    window.addEventListener("mousemove", optimizedMouseMove);
+
+    // Add passive event listeners where possible for better performance
+    window.addEventListener("scroll", () => {
+      // Hide overlay during scroll to avoid positioning issues
+      if (LocatorState.altPressed) {
+        LocatorState.hideOverlay();
+      }
+    }, { passive: true });
+
+    window.addEventListener("resize", debounce(() => {
+      // Recalculate positions on window resize
+      if (LocatorState.currentTargetElement && LocatorState.altPressed) {
+        updateOverlayPosition(LocatorState.currentTargetElement);
+      }
+    }, DEBOUNCE_DELAY), { passive: true });
   }
 
   // ============================================================================
