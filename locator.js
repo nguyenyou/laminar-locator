@@ -15,6 +15,9 @@
 
   const PREFER_IDE_KEY = "locator_prefer_ide_protocol";
   const PREFER_IDE_PROTOCOL = window.localStorage.getItem(PREFER_IDE_KEY) || "idea";
+  const PARENT_TOOLTIP_COUNT_KEY = "locator_parent_tooltip_count";
+  const DEFAULT_PARENT_COUNT = 3;
+  const MAX_PARENT_COUNT = 3;
   const EDITOR_PROTOCOL = {
     "idea": "idea://open?file=",
     "vscode": "vscode://file/",
@@ -61,8 +64,12 @@
     altPressed: false,
     overlayDiv: null,
     tooltipDiv: null,
+    parentTooltipDiv: null,
     currentTargetElement: null,
     currentMousePosition: { clientX: 0, clientY: 0 },
+    parentTooltipVisible: false,
+    parentTooltipTimeout: null,
+    lastTargetElement: null, // Track last target to detect component changes
 
     /**
      * Reset all state to initial values
@@ -70,9 +77,16 @@
     reset() {
       this.altPressed = false;
       this.currentTargetElement = null;
+      this.lastTargetElement = null;
       this.currentMousePosition = { clientX: 0, clientY: 0 };
+      this.parentTooltipVisible = false;
+      if (this.parentTooltipTimeout) {
+        clearTimeout(this.parentTooltipTimeout);
+        this.parentTooltipTimeout = null;
+      }
       this.resetCursor();
       this.hideOverlay();
+      this.hideParentTooltip();
     },
 
     /**
@@ -108,6 +122,16 @@
       if (this.tooltipDiv) {
         this.tooltipDiv.style.display = "none";
       }
+    },
+
+    /**
+     * Hide parent tooltip
+     */
+    hideParentTooltip() {
+      if (this.parentTooltipDiv) {
+        this.parentTooltipDiv.style.display = "none";
+      }
+      this.parentTooltipVisible = false;
     }
   };
 
@@ -165,6 +189,53 @@
     }
 
     return null;
+  }
+
+  /**
+   * Get the configured number of parent components to display
+   * @returns {number} Number of parents to show (0-3)
+   */
+  function getParentTooltipCount() {
+    const stored = window.localStorage.getItem(PARENT_TOOLTIP_COUNT_KEY);
+    if (stored) {
+      const count = parseInt(stored, 10);
+      if (!isNaN(count) && count >= 0 && count <= MAX_PARENT_COUNT) {
+        return count;
+      }
+    }
+    return DEFAULT_PARENT_COUNT;
+  }
+
+  /**
+   * Find parent UIComponents in the hierarchy
+   * @param {Element} currentElement - Current element to start searching from
+   * @param {number} maxCount - Maximum number of parents to find
+   * @returns {Array} Array of parent component information
+   */
+  function findParentComponents(currentElement, maxCount) {
+    const parents = [];
+    let element = currentElement.parentElement;
+    let level = 1;
+
+    while (element && element !== document.body && parents.length < maxCount) {
+      if (Object.hasOwn(element, "__scalasourcepath")) {
+        const filename = element.__scalafilename;
+        const line = element.__scalasourceline;
+
+        if (filename && line) {
+          parents.push({
+            element: element,
+            filename: filename,
+            line: line,
+            level: level
+          });
+          level++;
+        }
+      }
+      element = element.parentElement;
+    }
+
+    return parents;
   }
 
   /**
@@ -234,7 +305,7 @@
     // Apply base styles
     Object.assign(tooltip.style, {
       position: "fixed",
-      pointerEvents: "none",
+      pointerEvents: "none", // Changed back to none since we're using keyboard interaction
       backgroundColor: TOOLTIP_STYLES.backgroundColor,
       color: TOOLTIP_STYLES.color,
       padding: TOOLTIP_STYLES.padding,
@@ -255,6 +326,38 @@
   }
 
   /**
+   * Create the parent tooltip element that shows parent component hierarchy
+   * @returns {HTMLDivElement} Created parent tooltip element
+   */
+  function createParentTooltipElement() {
+    const tooltip = document.createElement("div");
+    tooltip.id = "locator-parent-tooltip";
+
+    // Apply base styles with higher z-index
+    Object.assign(tooltip.style, {
+      position: "fixed",
+      pointerEvents: "none", // Changed to none since we're using keyboard interaction
+      backgroundColor: TOOLTIP_STYLES.backgroundColor,
+      color: TOOLTIP_STYLES.color,
+      padding: "12px 16px",
+      borderRadius: TOOLTIP_STYLES.borderRadius,
+      fontSize: TOOLTIP_STYLES.fontSize,
+      fontFamily: TOOLTIP_STYLES.fontFamily,
+      border: TOOLTIP_STYLES.border,
+      boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+      whiteSpace: "nowrap",
+      zIndex: (parseInt(TOOLTIP_STYLES.zIndex) + 1).toString(),
+      display: "none",
+      boxSizing: "border-box",
+      transition: "all 0.1s ease-out",
+      minWidth: "200px",
+    });
+
+    document.body.appendChild(tooltip);
+    return tooltip;
+  }
+
+  /**
    * Initialize overlay and tooltip elements if they don't exist
    */
   function initializeOverlayElements() {
@@ -263,6 +366,9 @@
     }
     if (!LocatorState.tooltipDiv) {
       LocatorState.tooltipDiv = createTooltipElement();
+    }
+    if (!LocatorState.parentTooltipDiv) {
+      LocatorState.parentTooltipDiv = createParentTooltipElement();
     }
   }
 
@@ -398,6 +504,9 @@
   function updateOverlayPosition(targetElement) {
     initializeOverlayElements();
 
+    // Check for component change and hide parent tooltip if needed
+    checkForComponentChange(targetElement);
+
     // Store current target for click handling
     LocatorState.currentTargetElement = targetElement;
 
@@ -480,9 +589,151 @@
     });
   }
 
+  /**
+   * Show parent tooltip with hierarchical component information
+   * @param {Array} parents - Array of parent component information
+   */
+  function showParentTooltip(parents) {
+    if (!LocatorState.parentTooltipDiv || parents.length === 0) return;
+
+    // Create hierarchical content
+    const content = createParentTooltipContent(parents);
+    LocatorState.parentTooltipDiv.innerHTML = content;
+
+    // Make visible to measure dimensions
+    LocatorState.parentTooltipDiv.style.display = "block";
+    const tooltipRect = LocatorState.parentTooltipDiv.getBoundingClientRect();
+
+    // Calculate position relative to the main tooltip
+    const mainTooltip = LocatorState.tooltipDiv;
+    if (!mainTooltip) return;
+
+    const mainTooltipRect = mainTooltip.getBoundingClientRect();
+    const position = calculateParentTooltipPosition(mainTooltipRect, tooltipRect.width, tooltipRect.height);
+
+    // Apply position
+    Object.assign(LocatorState.parentTooltipDiv.style, {
+      left: `${position.left}px`,
+      top: `${position.top}px`,
+    });
+
+    LocatorState.parentTooltipVisible = true;
+  }
+
+  /**
+   * Toggle parent tooltip display when 'X' key is pressed while Alt is held
+   */
+  function toggleParentTooltip() {
+    // Only toggle if Alt is pressed and a tooltip is currently visible
+    if (!LocatorState.altPressed || !LocatorState.currentTargetElement) return;
+    if (!LocatorState.tooltipDiv || LocatorState.tooltipDiv.style.display === "none") return;
+
+    const parentCount = getParentTooltipCount();
+    if (parentCount === 0) return;
+
+    if (LocatorState.parentTooltipVisible) {
+      // Hide parent tooltip
+      LocatorState.hideParentTooltip();
+    } else {
+      // Show parent tooltip
+      const parents = findParentComponents(LocatorState.currentTargetElement, parentCount);
+      if (parents.length > 0) {
+        showParentTooltip(parents);
+      }
+    }
+  }
+
+  /**
+   * Create HTML content for parent tooltip with hierarchical styling
+   * @param {Array} parents - Array of parent component information
+   * @returns {string} HTML string for tooltip content
+   */
+  function createParentTooltipContent(parents) {
+    const items = parents.map((parent, index) => {
+      const indent = "  ".repeat(parent.level - 1);
+      const connector = index === 0 ? "└─ " : "├─ ";
+      return `<div style="margin: 4px 0; font-family: monospace;">
+        <span style="color: #888;">${indent}${connector}</span>
+        <span style="color: #fff;">${parent.filename}:${parent.line}</span>
+      </div>`;
+    });
+
+    return `
+      <div style="color: #ccc; font-size: 11px; margin-bottom: 8px;">Parent Components:</div>
+      ${items.join("")}
+    `;
+  }
+
+  /**
+   * Calculate position for parent tooltip relative to main tooltip
+   * @param {DOMRect} mainTooltipRect - Main tooltip bounding rectangle
+   * @param {number} parentWidth - Parent tooltip width
+   * @param {number} parentHeight - Parent tooltip height
+   * @returns {Object} Position object with left and top coordinates
+   */
+  function calculateParentTooltipPosition(mainTooltipRect, parentWidth, parentHeight) {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const margin = 8;
+
+    // Try positions in order of preference: right, left, bottom, top
+    const positions = [
+      // Right of main tooltip
+      {
+        left: mainTooltipRect.right + margin,
+        top: mainTooltipRect.top,
+      },
+      // Left of main tooltip
+      {
+        left: mainTooltipRect.left - parentWidth - margin,
+        top: mainTooltipRect.top,
+      },
+      // Below main tooltip
+      {
+        left: mainTooltipRect.left,
+        top: mainTooltipRect.bottom + margin,
+      },
+      // Above main tooltip
+      {
+        left: mainTooltipRect.left,
+        top: mainTooltipRect.top - parentHeight - margin,
+      },
+    ];
+
+    // Find first position that fits in viewport
+    for (const pos of positions) {
+      if (
+        pos.left >= 0 &&
+        pos.top >= 0 &&
+        pos.left + parentWidth <= viewportWidth &&
+        pos.top + parentHeight <= viewportHeight
+      ) {
+        return pos;
+      }
+    }
+
+    // Fallback to right position with viewport clamping
+    return {
+      left: Math.max(0, Math.min(mainTooltipRect.right + margin, viewportWidth - parentWidth)),
+      top: Math.max(0, Math.min(mainTooltipRect.top, viewportHeight - parentHeight)),
+    };
+  }
+
   // ============================================================================
   // EVENT HANDLERS
   // ============================================================================
+
+  /**
+   * Check if the target element has changed and hide parent tooltip if so
+   * @param {Element} newTargetElement - New target element
+   */
+  function checkForComponentChange(newTargetElement) {
+    if (LocatorState.lastTargetElement !== newTargetElement) {
+      // Component changed, hide parent tooltip
+      LocatorState.hideParentTooltip();
+      LocatorState.lastTargetElement = newTargetElement;
+    }
+  }
 
   /**
    * Handle overlay click events to open source files
@@ -512,10 +763,11 @@
   }
 
   /**
-   * Handle keydown events for Alt key detection
+   * Handle keydown events for Alt key detection and X key toggle
    * @param {KeyboardEvent} event - Keyboard event
    */
   function handleKeyDown(event) {
+    console.log("Key down", event.key);
     if (event.key === "Alt" && !LocatorState.altPressed) {
       // Alt key pressed for the first time - immediately trigger overlay at current mouse position
       LocatorState.setAltPressed(true);
@@ -528,6 +780,13 @@
 
       // Immediately render overlay at current mouse position
       renderLocatorOverlay(syntheticMouseEvent);
+    } else if (event.key === "Shift") {
+      console.log("X key pressed");
+      // X key pressed - toggle parent tooltip if Alt is held and tooltip is visible
+      if (LocatorState.altPressed) {
+        event.preventDefault(); // Prevent any default behavior
+        toggleParentTooltip();
+      }
     }
   }
 
@@ -539,6 +798,7 @@
     if (event.key === "Alt") {
       LocatorState.setAltPressed(false);
       LocatorState.hideOverlay();
+      LocatorState.hideParentTooltip();
     }
   }
 
@@ -561,6 +821,7 @@
       renderLocatorOverlay(event);
     } else {
       LocatorState.hideOverlay();
+      LocatorState.hideParentTooltip();
     }
   }
 
