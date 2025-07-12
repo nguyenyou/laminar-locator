@@ -43,6 +43,52 @@
     }
   };
 
+  // Navigation indicator styling constants
+  const NAVIGATION_INDICATOR_STYLES = {
+    size: 20, // Size of arrow indicators
+    offset: 4, // Distance from overlay edge
+    backgroundColor: "rgba(255, 140, 0, 0.9)",
+    color: "white",
+    borderRadius: "50%",
+    fontSize: "12px",
+    fontWeight: "bold",
+    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
+    zIndex: "10001", // Above overlay
+    transition: "all 0.2s ease-out",
+
+    // Different styles for different directions
+    directions: {
+      up: { symbol: "↑", position: "top" },
+      down: { symbol: "↓", position: "bottom" },
+      left: { symbol: "←", position: "left" },
+      right: { symbol: "→", position: "right" }
+    }
+  };
+
+  // Visual feedback animation constants
+  const VISUAL_FEEDBACK_STYLES = {
+    // Bounce animation for navigation indicators
+    bounce: {
+      duration: 300, // ms
+      distance: 8, // pixels to move
+      easing: "cubic-bezier(0.68, -0.55, 0.265, 1.55)"
+    },
+
+    // Scale animation for overlay selection
+    scale: {
+      duration: 250, // ms
+      maxScale: 1.08,
+      easing: "cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+    },
+
+    // Pulse animation for boundary navigation
+    pulse: {
+      duration: 400, // ms
+      iterations: 2,
+      easing: "ease-in-out"
+    }
+  };
+
   // Tooltip styling constants
   const TOOLTIP_STYLES = {
     backgroundColor: "rgba(0, 0, 0, 0.9)",
@@ -73,6 +119,8 @@
     overlayDiv: null,
     tooltipDiv: null,
     parentTooltipDiv: null,
+    navigationIndicators: {}, // Store navigation indicator elements by direction
+
     currentTargetElement: null,
     currentMousePosition: { clientX: 0, clientY: 0 },
     parentTooltipVisible: false,
@@ -106,6 +154,7 @@
       this.resetCursor();
       this.hideOverlay();
       this.hideParentTooltip();
+      this.hideNavigationIndicators();
     },
 
     /**
@@ -172,6 +221,7 @@
       if (this.tooltipDiv) {
         this.tooltipDiv.style.display = "none";
       }
+      this.hideNavigationIndicators();
     },
 
     /**
@@ -182,6 +232,17 @@
         this.parentTooltipDiv.style.display = "none";
       }
       this.parentTooltipVisible = false;
+    },
+
+    /**
+     * Hide all navigation indicators
+     */
+    hideNavigationIndicators() {
+      Object.values(this.navigationIndicators).forEach(indicator => {
+        if (indicator) {
+          indicator.style.display = "none";
+        }
+      });
     }
   };
 
@@ -289,6 +350,108 @@
   }
 
   // ============================================================================
+  // NAVIGATION STATE ANALYSIS FUNCTIONS
+  // ============================================================================
+
+  /**
+   * Analyze the navigation context for a given component
+   * @param {Element} currentElement - Current element to analyze
+   * @returns {Object} Navigation context information
+   */
+  function analyzeNavigationContext(currentElement) {
+    if (!currentElement) {
+      return {
+        hasParent: false,
+        hasChildren: false,
+        siblingCount: 0,
+        siblingPosition: 0,
+        parentInfo: null,
+        childCount: 0,
+        isAtRoot: true,
+        isAtLeaf: true,
+        availableDirections: []
+      };
+    }
+
+    const parent = findParentComponent(currentElement);
+    const children = findChildComponents(currentElement);
+    const siblings = findSiblingComponents(currentElement);
+
+    // Calculate sibling position (1-based index)
+    // Need to get all siblings including current element to find position
+    let siblingPosition = 0;
+    if (parent) {
+      // Get all children of parent (which includes current element and its siblings)
+      const allSiblings = findChildComponents(parent);
+      siblingPosition = allSiblings.indexOf(currentElement) + 1;
+    } else {
+      // At root level, get all top-level components
+      const topLevelComponents = findTopLevelComponents();
+      siblingPosition = topLevelComponents.indexOf(currentElement) + 1;
+    }
+
+    // Determine available navigation directions
+    const availableDirections = [];
+    if (parent || findDeepestComponent()) availableDirections.push('up');
+    if (children.length > 0 || findFirstComponent()) availableDirections.push('down');
+    if (siblings.length > 0) {
+      availableDirections.push('left', 'right');
+    }
+
+    // Get parent component info
+    let parentInfo = null;
+    if (parent) {
+      parentInfo = {
+        filename: parent.__scalafilename,
+        line: parent.__scalasourceline,
+        element: parent
+      };
+    }
+
+    return {
+      hasParent: !!parent,
+      hasChildren: children.length > 0,
+      siblingCount: siblings.length,
+      siblingPosition: siblingPosition,
+      parentInfo: parentInfo,
+      childCount: children.length,
+      isAtRoot: !parent,
+      isAtLeaf: children.length === 0,
+      availableDirections: availableDirections,
+      siblings: siblings,
+      children: children
+    };
+  }
+
+
+
+  /**
+   * Get short navigation hints for tooltip
+   * @param {Element} currentElement - Current element
+   * @returns {string} Short navigation hints
+   */
+  function getNavigationHints(currentElement) {
+    const context = analyzeNavigationContext(currentElement);
+
+    if (context.availableDirections.length === 0) {
+      return "No navigation available";
+    }
+
+    const hints = [];
+    if (context.availableDirections.includes('up')) {
+      hints.push(context.hasParent ? "↑Parent" : "↑Cycle");
+    }
+    if (context.availableDirections.includes('down')) {
+      hints.push(context.hasChildren ? "↓Child" : "↓Cycle");
+    }
+    if (context.availableDirections.includes('left') || context.availableDirections.includes('right')) {
+      hints.push(`←→Siblings(${context.siblingCount + 1})`);
+    }
+
+    return hints.join(' ');
+  }
+
+  // ============================================================================
   // KEYBOARD NAVIGATION FUNCTIONS
   // ============================================================================
 
@@ -355,26 +518,39 @@
   function handleKeyboardNavigation(direction) {
     let targetElement = null;
     const currentElement = LocatorState.keyboardSelectedElement || LocatorState.currentTargetElement;
+    let isBoundaryNavigation = false;
 
     if (!currentElement) {
       // No current element, start with first top-level component
       const topLevel = findTopLevelComponents();
       if (topLevel.length > 0) {
         targetElement = topLevel[0];
+      } else {
+        return;
       }
     } else {
+      const context = analyzeNavigationContext(currentElement);
+
       switch (direction) {
         case 'up':
           targetElement = navigateToParent(currentElement);
+          isBoundaryNavigation = !context.hasParent; // Cycling to deepest
           break;
         case 'down':
           targetElement = navigateToFirstChild(currentElement);
+          isBoundaryNavigation = !context.hasChildren; // Cycling to first
           break;
         case 'left':
           targetElement = navigateToPreviousSibling(currentElement);
+          // Boundary navigation occurs when there are no siblings or at first position
+          isBoundaryNavigation = context.siblingCount === 0 || context.siblingPosition === 1;
           break;
         case 'right':
           targetElement = navigateToNextSibling(currentElement);
+          // Boundary navigation occurs when there are no siblings or at last position
+          // Total siblings = siblingCount + 1 (including current element)
+          isBoundaryNavigation = context.siblingCount === 0 ||
+            context.siblingPosition === (context.siblingCount + 1);
           break;
       }
     }
@@ -382,6 +558,15 @@
     if (targetElement) {
       LocatorState.setKeyboardSelectedElement(targetElement);
       updateOverlayPosition(targetElement);
+
+      // Provide visual feedback
+      if (isBoundaryNavigation) {
+        triggerVisualFeedback('boundary', direction);
+      } else {
+        triggerVisualFeedback('navigate', direction);
+      }
+    } else {
+      triggerVisualFeedback('error', direction);
     }
   }
 
@@ -632,8 +817,9 @@
       zIndex: OVERLAY_STYLES.zIndex,
       display: "none",
       boxSizing: "border-box",
-      transition: OVERLAY_STYLES.transition,
+      transition: OVERLAY_STYLES.transition + ", transform 0.2s ease-out",
       cursor: "pointer",
+      transform: "scale(1)", // Initialize transform for animations
     });
 
     // Add click event listener
@@ -707,6 +893,200 @@
   }
 
   /**
+   * Create a navigation indicator element for a specific direction
+   * @param {string} direction - Direction ('up', 'down', 'left', 'right')
+   * @returns {HTMLDivElement} Created navigation indicator element
+   */
+  function createNavigationIndicator(direction) {
+    const indicator = document.createElement("div");
+    indicator.id = `locator-nav-indicator-${direction}`;
+
+    const directionInfo = NAVIGATION_INDICATOR_STYLES.directions[direction];
+    const size = NAVIGATION_INDICATOR_STYLES.size;
+
+    // Apply base styles
+    Object.assign(indicator.style, {
+      position: "fixed",
+      width: `${size}px`,
+      height: `${size}px`,
+      backgroundColor: NAVIGATION_INDICATOR_STYLES.backgroundColor,
+      color: NAVIGATION_INDICATOR_STYLES.color,
+      borderRadius: NAVIGATION_INDICATOR_STYLES.borderRadius,
+      fontSize: NAVIGATION_INDICATOR_STYLES.fontSize,
+      fontWeight: NAVIGATION_INDICATOR_STYLES.fontWeight,
+      boxShadow: NAVIGATION_INDICATOR_STYLES.boxShadow,
+      zIndex: NAVIGATION_INDICATOR_STYLES.zIndex,
+      display: "none",
+      boxSizing: "border-box",
+      transition: NAVIGATION_INDICATOR_STYLES.transition + ", transform 0.2s ease-out",
+      cursor: "pointer",
+      userSelect: "none",
+      textAlign: "center",
+      lineHeight: `${size}px`,
+      pointerEvents: "none", // Don't interfere with overlay clicks
+      transform: "translate(0, 0)", // Initialize transform for animations
+    });
+
+    // Set the arrow symbol
+    indicator.textContent = directionInfo.symbol;
+
+    document.body.appendChild(indicator);
+    return indicator;
+  }
+
+
+
+
+
+
+
+  /**
+   * Trigger visual feedback animations for navigation actions
+   * @param {string} action - Type of action ('navigate', 'boundary', 'error')
+   * @param {string} direction - Direction of navigation ('up', 'down', 'left', 'right')
+   */
+  function triggerVisualFeedback(action, direction) {
+    switch (action) {
+      case 'navigate':
+        triggerBounceAnimation(direction);
+        triggerScaleAnimation();
+        break;
+      case 'boundary':
+        triggerBounceAnimation(direction);
+        triggerPulseAnimation();
+        break;
+      case 'error':
+        triggerErrorAnimation();
+        break;
+    }
+  }
+
+  /**
+   * Trigger bounce animation for navigation indicator
+   * @param {string} direction - Direction of navigation
+   */
+  function triggerBounceAnimation(direction) {
+    const indicator = LocatorState.navigationIndicators[direction];
+    if (!indicator || indicator.style.display === 'none') return;
+
+    const bounce = VISUAL_FEEDBACK_STYLES.bounce;
+    const originalTransform = indicator.style.transform || '';
+
+    // Calculate bounce direction
+    let bounceTransform;
+    switch (direction) {
+      case 'up':
+        bounceTransform = `translateY(-${bounce.distance}px)`;
+        break;
+      case 'down':
+        bounceTransform = `translateY(${bounce.distance}px)`;
+        break;
+      case 'left':
+        bounceTransform = `translateX(-${bounce.distance}px)`;
+        break;
+      case 'right':
+        bounceTransform = `translateX(${bounce.distance}px)`;
+        break;
+      default:
+        return;
+    }
+
+    // Apply bounce animation
+    indicator.style.transition = `transform ${bounce.duration}ms ${bounce.easing}`;
+    indicator.style.transform = bounceTransform;
+
+    // Return to original position
+    setTimeout(() => {
+      indicator.style.transform = originalTransform;
+      setTimeout(() => {
+        indicator.style.transition = NAVIGATION_INDICATOR_STYLES.transition;
+      }, bounce.duration);
+    }, bounce.duration / 2);
+  }
+
+  /**
+   * Trigger scale animation for overlay selection
+   */
+  function triggerScaleAnimation() {
+    const overlay = LocatorState.overlayDiv;
+    if (!overlay || overlay.style.display === 'none') return;
+
+    const scale = VISUAL_FEEDBACK_STYLES.scale;
+    const originalTransform = overlay.style.transform || '';
+
+    // Apply scale animation
+    overlay.style.transition = `transform ${scale.duration}ms ${scale.easing}`;
+    overlay.style.transform = `scale(${scale.maxScale})`;
+
+    // Return to original scale
+    setTimeout(() => {
+      overlay.style.transform = originalTransform;
+      setTimeout(() => {
+        overlay.style.transition = OVERLAY_STYLES.transition;
+      }, scale.duration);
+    }, scale.duration / 2);
+  }
+
+  /**
+   * Trigger pulse animation for boundary navigation
+   */
+  function triggerPulseAnimation() {
+    const overlay = LocatorState.overlayDiv;
+    if (!overlay || overlay.style.display === 'none') return;
+
+    const pulse = VISUAL_FEEDBACK_STYLES.pulse;
+    const originalBoxShadow = overlay.style.boxShadow;
+
+    // Create pulsing box shadow effect
+    const pulseBoxShadow = OVERLAY_STYLES.keyboard.boxShadow + ', 0 0 20px rgba(255, 140, 0, 0.8)';
+
+    overlay.style.transition = `box-shadow ${pulse.duration / pulse.iterations}ms ${pulse.easing}`;
+
+    let iteration = 0;
+    const pulseInterval = setInterval(() => {
+      if (iteration % 2 === 0) {
+        overlay.style.boxShadow = pulseBoxShadow;
+      } else {
+        overlay.style.boxShadow = originalBoxShadow;
+      }
+
+      iteration++;
+      if (iteration >= pulse.iterations * 2) {
+        clearInterval(pulseInterval);
+        setTimeout(() => {
+          overlay.style.transition = OVERLAY_STYLES.transition;
+        }, pulse.duration / pulse.iterations);
+      }
+    }, pulse.duration / pulse.iterations);
+  }
+
+  /**
+   * Trigger error animation (subtle shake)
+   */
+  function triggerErrorAnimation() {
+    const overlay = LocatorState.overlayDiv;
+    if (!overlay || overlay.style.display === 'none') return;
+
+    const originalTransform = overlay.style.transform || '';
+    const shakeDistance = 3;
+    const shakeDuration = 200;
+
+    overlay.style.transition = `transform ${shakeDuration / 4}ms ease-in-out`;
+
+    // Shake left and right
+    setTimeout(() => overlay.style.transform = `translateX(-${shakeDistance}px)`, 0);
+    setTimeout(() => overlay.style.transform = `translateX(${shakeDistance}px)`, shakeDuration / 4);
+    setTimeout(() => overlay.style.transform = `translateX(-${shakeDistance / 2}px)`, shakeDuration / 2);
+    setTimeout(() => overlay.style.transform = originalTransform, shakeDuration * 3 / 4);
+
+    setTimeout(() => {
+      overlay.style.transition = OVERLAY_STYLES.transition;
+    }, shakeDuration);
+  }
+
+
+
+  /**
    * Initialize overlay and tooltip elements if they don't exist
    */
   function initializeOverlayElements() {
@@ -719,6 +1099,14 @@
     if (!LocatorState.parentTooltipDiv) {
       LocatorState.parentTooltipDiv = createParentTooltipElement();
     }
+
+    // Initialize navigation indicators
+    const directions = ['up', 'down', 'left', 'right'];
+    directions.forEach(direction => {
+      if (!LocatorState.navigationIndicators[direction]) {
+        LocatorState.navigationIndicators[direction] = createNavigationIndicator(direction);
+      }
+    });
   }
 
   // ============================================================================
@@ -842,6 +1230,56 @@
     );
   }
 
+  /**
+   * Update navigation indicators based on available directions
+   * @param {Object} overlayPosition - Overlay position for indicator positioning
+   * @param {Array} availableDirections - Array of available navigation directions
+   */
+  function updateNavigationIndicators(overlayPosition, availableDirections) {
+    const size = NAVIGATION_INDICATOR_STYLES.size;
+    const offset = NAVIGATION_INDICATOR_STYLES.offset;
+
+    // Hide all indicators first
+    LocatorState.hideNavigationIndicators();
+
+    // Show indicators for available directions
+    availableDirections.forEach(direction => {
+      const indicator = LocatorState.navigationIndicators[direction];
+      if (!indicator) return;
+
+      let left, top;
+
+      switch (direction) {
+        case 'up':
+          left = overlayPosition.left + overlayPosition.width / 2 - size / 2;
+          top = overlayPosition.top - size - offset;
+          break;
+        case 'down':
+          left = overlayPosition.left + overlayPosition.width / 2 - size / 2;
+          top = overlayPosition.top + overlayPosition.height + offset;
+          break;
+        case 'left':
+          left = overlayPosition.left - size - offset;
+          top = overlayPosition.top + overlayPosition.height / 2 - size / 2;
+          break;
+        case 'right':
+          left = overlayPosition.left + overlayPosition.width + offset;
+          top = overlayPosition.top + overlayPosition.height / 2 - size / 2;
+          break;
+      }
+
+      // Ensure indicators stay within viewport
+      left = Math.max(0, Math.min(left, window.innerWidth - size));
+      top = Math.max(0, Math.min(top, window.innerHeight - size));
+
+      Object.assign(indicator.style, {
+        left: `${left}px`,
+        top: `${top}px`,
+        display: "block"
+      });
+    });
+  }
+
   // ============================================================================
   // OVERLAY UPDATE LOGIC
   // ============================================================================
@@ -882,6 +1320,12 @@
 
     // Update tooltip
     updateTooltipPosition(`${scalafilename}:${scalasourceline}`, overlayPosition);
+
+    // Update navigation indicators if in keyboard mode
+    if (LocatorState.navigationMode === 'keyboard') {
+      const context = analyzeNavigationContext(targetElement);
+      updateNavigationIndicators(overlayPosition, context.availableDirections);
+    }
   }
 
   /**
@@ -924,16 +1368,56 @@
   function updateTooltipPosition(content, overlayPosition) {
     const tooltip = LocatorState.tooltipDiv;
     const isKeyboardMode = LocatorState.navigationMode === 'keyboard';
+    const currentElement = LocatorState.currentTargetElement;
 
-    // Add keyboard navigation hints if in keyboard mode
+    // Build enhanced tooltip content
     let tooltipContent = content;
-    if (isKeyboardMode) {
+
+    if (isKeyboardMode && currentElement) {
+      const context = analyzeNavigationContext(currentElement);
+      const navigationHints = getNavigationHints(currentElement);
+
+      // Add navigation information
+      const parts = [content];
+
+      // Add navigation hints
+      if (navigationHints && navigationHints !== "No navigation available") {
+        parts.push(navigationHints);
+      }
+
+      // Add detailed context information
+      const contextParts = [];
+
+      if (context.hasParent) {
+        contextParts.push(`Parent: ${context.parentInfo.filename}:${context.parentInfo.line}`);
+      } else {
+        contextParts.push("Root level");
+      }
+
+      if (context.siblingCount > 0) {
+        contextParts.push(`${context.siblingPosition}/${context.siblingCount + 1} siblings`);
+      }
+
+      if (context.hasChildren) {
+        contextParts.push(`${context.childCount} child${context.childCount === 1 ? '' : 'ren'}`);
+      }
+
+      if (contextParts.length > 0) {
+        parts.push(contextParts.join(' • '));
+      }
+
+      // Add basic navigation hint
+      parts.push("Alt+↑↓←→ to navigate");
+
+      tooltipContent = parts.join('\n');
+    } else if (isKeyboardMode) {
       tooltipContent += " • Alt+↑↓←→ to navigate";
     }
 
     // Set content and make visible to measure dimensions
     tooltip.textContent = tooltipContent;
     tooltip.style.display = "block";
+    tooltip.style.whiteSpace = isKeyboardMode ? "pre-line" : "nowrap";
 
     // Get tooltip dimensions
     const tooltipRect = tooltip.getBoundingClientRect();
@@ -1245,7 +1729,6 @@
 
     // Handle Alt + Arrow key combinations for keyboard navigation
     if (event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
-      console.log("h")
       switch (event.key) {
         case "ArrowUp":
           event.preventDefault();
