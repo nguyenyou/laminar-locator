@@ -51,68 +51,9 @@
     }
   };
 
-  // Navigation indicator styling constants (no animations)
-  const NAVIGATION_INDICATOR_STYLES = {
-    size: 24, // Slightly larger for better visibility
-    offset: 6, // Increased distance from overlay edge
-    backgroundColor: "rgba(255, 140, 0, 0.95)",
-    color: "white",
-    borderRadius: "50%",
-    fontSize: "13px",
-    fontWeight: "600",
-    boxShadow: "0 3px 12px rgba(255, 140, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.3)",
-    zIndex: "10001", // Above overlay
-    border: "2px solid rgba(255, 255, 255, 0.9)",
 
-    // Different styles for different directions
-    directions: {
-      up: { symbol: "↑", position: "top" },
-      down: { symbol: "↓", position: "bottom" },
-      left: { symbol: "←", position: "left" },
-      right: { symbol: "→", position: "right" }
-    }
-  };
 
-  // Visual feedback animation constants
-  const VISUAL_FEEDBACK_STYLES = {
-    // Enhanced bounce animation for navigation indicators
-    bounce: {
-      duration: 350, // Slightly longer for smoother feel
-      distance: 10, // Increased distance for more noticeable effect
-      easing: "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
-      returnDuration: 200, // Faster return for snappier feel
-    },
 
-    // Enhanced scale animation for overlay selection
-    scale: {
-      duration: 280, // Slightly longer for smoother scaling
-      maxScale: 1.06, // Reduced scale for more subtle effect
-      easing: "cubic-bezier(0.34, 1.56, 0.64, 1)",
-      returnDuration: 200,
-    },
-
-    // Enhanced pulse animation for boundary navigation
-    pulse: {
-      duration: 500, // Longer duration for more noticeable effect
-      iterations: 2,
-      easing: "cubic-bezier(0.4, 0, 0.6, 1)",
-      intensity: 1.3, // Multiplier for pulse effect intensity
-    },
-
-    // New shimmer animation for initial appearance
-    shimmer: {
-      duration: 600,
-      easing: "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-    },
-
-    // Enhanced error animation (shake)
-    error: {
-      duration: 300,
-      distance: 4,
-      iterations: 3,
-      easing: "cubic-bezier(0.36, 0.07, 0.19, 0.97)",
-    }
-  };
 
   // Tooltip styling constants - consistent with system design
   const TOOLTIP_STYLES = {
@@ -140,24 +81,9 @@
 
   // Performance constants
   const MOUSEMOVE_THROTTLE_DELAY = 50; // ms
-  const ANIMATION_FRAME_THROTTLE_DELAY = 16; // ~60fps
   const DEBOUNCE_DELAY = 100; // ms for debouncing rapid state changes
 
-  // Status indicator styling constants - consistent with tooltip design
-  const STATUS_INDICATOR_STYLES = {
-    backgroundColor: "rgba(0, 0, 0, 0.88)",
-    color: "white",
-    padding: "8px 16px", // Slightly larger for better readability
-    borderRadius: "20px", // Pill-shaped for modern look
-    fontSize: "11px",
-    fontFamily: "system-ui, -apple-system, sans-serif", // System font for UI elements
-    fontWeight: "500",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
-    boxShadow: "0 4px 16px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2)",
-    zIndex: "10002", // Above navigation indicators
-    transition: "all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-    backdropFilter: "blur(12px)", // Enhanced blur for better readability
-  };
+
 
   // ============================================================================
   // STATE MANAGEMENT
@@ -172,8 +98,6 @@
     overlayDiv: null,
     tooltipDiv: null,
     parentTooltipDiv: null,
-    statusIndicatorDiv: null, // Status indicator for keyboard navigation
-    navigationIndicators: {}, // Store navigation indicator elements by direction
 
     currentTargetElement: null,
     currentMousePosition: { clientX: 0, clientY: 0 },
@@ -208,7 +132,6 @@
       this.resetCursor();
       this.hideOverlay();
       this.hideParentTooltip();
-      this.hideNavigationIndicators();
     },
 
     /**
@@ -293,7 +216,7 @@
         }, 150);
       }
 
-      this.hideNavigationIndicators();
+
     },
 
     /**
@@ -306,16 +229,7 @@
       this.parentTooltipVisible = false;
     },
 
-    /**
-     * Hide all navigation indicators instantly (no animations)
-     */
-    hideNavigationIndicators() {
-      Object.values(this.navigationIndicators).forEach(indicator => {
-        if (indicator) {
-          indicator.style.display = "none";
-        }
-      });
-    }
+
   };
 
   // ============================================================================
@@ -462,107 +376,11 @@
     return parents;
   }
 
-  // ============================================================================
-  // NAVIGATION STATE ANALYSIS FUNCTIONS
-  // ============================================================================
-
-  /**
-   * Analyze the navigation context for a given component
-   * @param {Element} currentElement - Current element to analyze
-   * @returns {Object} Navigation context information
-   */
-  function analyzeNavigationContext(currentElement) {
-    if (!currentElement) {
-      return {
-        hasParent: false,
-        hasChildren: false,
-        siblingCount: 0,
-        siblingPosition: 0,
-        parentInfo: null,
-        childCount: 0,
-        isAtRoot: true,
-        isAtLeaf: true,
-        availableDirections: []
-      };
-    }
-
-    const parent = findParentComponent(currentElement);
-    const children = findChildComponents(currentElement);
-    const siblings = findSiblingComponents(currentElement);
-
-    // Calculate sibling position (1-based index)
-    // Need to get all siblings including current element to find position
-    let siblingPosition = 0;
-    if (parent) {
-      // Get all children of parent (which includes current element and its siblings)
-      const allSiblings = findChildComponents(parent);
-      siblingPosition = allSiblings.indexOf(currentElement) + 1;
-    } else {
-      // At root level, get all top-level components
-      const topLevelComponents = findTopLevelComponents();
-      siblingPosition = topLevelComponents.indexOf(currentElement) + 1;
-    }
-
-    // Determine available navigation directions
-    const availableDirections = [];
-    if (parent || findDeepestComponent()) availableDirections.push('up');
-    if (children.length > 0 || findFirstComponent()) availableDirections.push('down');
-    if (siblings.length > 0) {
-      availableDirections.push('left', 'right');
-    }
-
-    // Get parent component info
-    let parentInfo = null;
-    if (parent) {
-      parentInfo = {
-        filename: parent.__scalafilename,
-        line: parent.__scalasourceline,
-        element: parent
-      };
-    }
-
-    return {
-      hasParent: !!parent,
-      hasChildren: children.length > 0,
-      siblingCount: siblings.length,
-      siblingPosition: siblingPosition,
-      parentInfo: parentInfo,
-      childCount: children.length,
-      isAtRoot: !parent,
-      isAtLeaf: children.length === 0,
-      availableDirections: availableDirections,
-      siblings: siblings,
-      children: children
-    };
-  }
 
 
 
-  /**
-   * Get short navigation hints for tooltip
-   * @param {Element} currentElement - Current element
-   * @returns {string} Short navigation hints
-   */
-  function getNavigationHints(currentElement) {
-    const context = analyzeNavigationContext(currentElement);
 
-    if (context.availableDirections.length === 0) {
-      return "No navigation available";
-    }
 
-    const hints = [];
-    if (context.availableDirections.includes('up')) {
-      hints.push(context.hasParent ? "↑Parent" : "↑Cycle");
-    }
-    if (context.availableDirections.includes('down')) {
-      hints.push(context.hasChildren ? "↓Child" : "↓Cycle");
-    }
-    if (context.availableDirections.includes('left') || context.availableDirections.includes('right')) {
-      hints.push(`←→Siblings(${context.siblingCount + 1})`);
-    }
-
-    return hints.join(' ');
-  }
 
   // ============================================================================
   // KEYBOARD NAVIGATION FUNCTIONS
@@ -631,60 +449,28 @@
   function handleKeyboardNavigation(direction) {
     let targetElement = null;
     const currentElement = LocatorState.keyboardSelectedElement || LocatorState.currentTargetElement;
-    let isBoundaryNavigation = false;
-    let statusMessage = "";
 
     if (!currentElement) {
       // No current element, start with first top-level component
       const topLevel = findTopLevelComponents();
       if (topLevel.length > 0) {
         targetElement = topLevel[0];
-        statusMessage = "Started keyboard navigation";
-        showStatusIndicator(statusMessage, 1500);
       } else {
-        showStatusIndicator("No components found", 2000);
         return;
       }
     } else {
-      const context = analyzeNavigationContext(currentElement);
-
       switch (direction) {
         case 'up':
           targetElement = navigateToParent(currentElement);
-          isBoundaryNavigation = !context.hasParent;
-          statusMessage = isBoundaryNavigation ?
-            "Cycled to deepest component" :
-            `Moved to parent: ${targetElement.__scalafilename}:${targetElement.__scalasourceline}`;
           break;
         case 'down':
           targetElement = navigateToFirstChild(currentElement);
-          isBoundaryNavigation = !context.hasChildren;
-          statusMessage = isBoundaryNavigation ?
-            "Cycled to first component" :
-            `Moved to child: ${targetElement.__scalafilename}:${targetElement.__scalasourceline}`;
           break;
         case 'left':
           targetElement = navigateToPreviousSibling(currentElement);
-          isBoundaryNavigation = context.siblingCount === 0 || context.siblingPosition === 1;
-          if (context.siblingCount === 0) {
-            statusMessage = "No siblings available";
-          } else {
-            statusMessage = isBoundaryNavigation ?
-              "Cycled to last sibling" :
-              `Previous sibling (${context.siblingPosition - 1}/${context.siblingCount + 1})`;
-          }
           break;
         case 'right':
           targetElement = navigateToNextSibling(currentElement);
-          isBoundaryNavigation = context.siblingCount === 0 ||
-            context.siblingPosition === (context.siblingCount + 1);
-          if (context.siblingCount === 0) {
-            statusMessage = "No siblings available";
-          } else {
-            statusMessage = isBoundaryNavigation ?
-              "Cycled to first sibling" :
-              `Next sibling (${context.siblingPosition + 1}/${context.siblingCount + 1})`;
-          }
           break;
       }
     }
@@ -692,21 +478,6 @@
     if (targetElement) {
       LocatorState.setKeyboardSelectedElement(targetElement);
       updateOverlayPosition(targetElement);
-
-      // Show status message for successful navigation
-      if (statusMessage && !statusMessage.includes("Cycled")) {
-        showStatusIndicator(statusMessage, 1500);
-      }
-
-      // Provide visual feedback
-      if (isBoundaryNavigation) {
-        triggerVisualFeedback('boundary', direction);
-      } else {
-        triggerVisualFeedback('navigate', direction);
-      }
-    } else {
-      showStatusIndicator("Navigation failed", 2000);
-      triggerVisualFeedback('error', direction);
     }
   }
 
@@ -717,40 +488,25 @@
     const targetElement = LocatorState.keyboardSelectedElement || LocatorState.currentTargetElement;
 
     if (!targetElement) {
-      showStatusIndicator("No component selected", 2000);
-      triggerVisualFeedback('error', 'enter');
       return;
     }
 
     // Validate required properties
     const scalasourcepath = targetElement.__scalasourcepath;
     const scalasourceline = targetElement.__scalasourceline;
-    const scalafilename = targetElement.__scalafilename;
 
     if (!scalasourcepath) {
-      showStatusIndicator("Invalid component - no source path", 2000);
-      triggerVisualFeedback('error', 'enter');
       return;
     }
 
     try {
-      // Show opening status
-      showStatusIndicator(`Opening ${scalafilename}:${scalasourceline}...`, 1000);
-
-      // Trigger visual feedback to indicate action
-      triggerScaleAnimation();
-
       // Open file at source path (same logic as handleOverlayClick)
       openFileAtSourcePath(scalasourcepath, scalasourceline);
 
       // Exit locator mode after successful file opening
-      setTimeout(() => {
-        LocatorState.reset();
-      }, 300); // Small delay to show the feedback
+      LocatorState.reset();
     } catch (error) {
       console.error("Error opening file from keyboard navigation:", error);
-      showStatusIndicator("Failed to open file", 2000);
-      triggerVisualFeedback('error', 'enter');
     }
   }
 
@@ -1119,129 +875,6 @@
     return tooltip;
   }
 
-  /**
-   * Create a navigation indicator element for a specific direction
-   * @param {string} direction - Direction ('up', 'down', 'left', 'right')
-   * @returns {HTMLDivElement} Created navigation indicator element
-   */
-  function createNavigationIndicator(direction) {
-    const indicator = document.createElement("div");
-    indicator.id = `locator-nav-indicator-${direction}`;
-
-    const directionInfo = NAVIGATION_INDICATOR_STYLES.directions[direction];
-    const size = NAVIGATION_INDICATOR_STYLES.size;
-
-    // Apply base styles with perfect centering and no animations
-    Object.assign(indicator.style, {
-      position: "fixed",
-      width: `${size}px`,
-      height: `${size}px`,
-      backgroundColor: NAVIGATION_INDICATOR_STYLES.backgroundColor,
-      color: NAVIGATION_INDICATOR_STYLES.color,
-      borderRadius: NAVIGATION_INDICATOR_STYLES.borderRadius,
-      fontSize: NAVIGATION_INDICATOR_STYLES.fontSize,
-      fontWeight: NAVIGATION_INDICATOR_STYLES.fontWeight,
-      boxShadow: NAVIGATION_INDICATOR_STYLES.boxShadow,
-      border: NAVIGATION_INDICATOR_STYLES.border,
-      zIndex: NAVIGATION_INDICATOR_STYLES.zIndex,
-      display: "none",
-      boxSizing: "border-box",
-      cursor: "pointer",
-      userSelect: "none",
-      // Perfect centering for arrow symbols
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      pointerEvents: "none", // Don't interfere with overlay clicks
-    });
-
-    // Set the arrow symbol
-    indicator.textContent = directionInfo.symbol;
-
-    document.body.appendChild(indicator);
-    return indicator;
-  }
-
-  /**
-   * Create the status indicator element for keyboard navigation feedback
-   * @returns {HTMLDivElement} Created status indicator element
-   */
-  function createStatusIndicator() {
-    const indicator = document.createElement("div");
-    indicator.id = "locator-status-indicator";
-
-    // Apply base styles
-    Object.assign(indicator.style, {
-      position: "fixed",
-      top: "20px",
-      right: "20px",
-      backgroundColor: STATUS_INDICATOR_STYLES.backgroundColor,
-      color: STATUS_INDICATOR_STYLES.color,
-      padding: STATUS_INDICATOR_STYLES.padding,
-      borderRadius: STATUS_INDICATOR_STYLES.borderRadius,
-      fontSize: STATUS_INDICATOR_STYLES.fontSize,
-      fontFamily: STATUS_INDICATOR_STYLES.fontFamily,
-      fontWeight: STATUS_INDICATOR_STYLES.fontWeight,
-      border: STATUS_INDICATOR_STYLES.border,
-      boxShadow: STATUS_INDICATOR_STYLES.boxShadow,
-      zIndex: STATUS_INDICATOR_STYLES.zIndex,
-      display: "none",
-      boxSizing: "border-box",
-      transition: STATUS_INDICATOR_STYLES.transition,
-      backdropFilter: STATUS_INDICATOR_STYLES.backdropFilter,
-      pointerEvents: "none",
-      userSelect: "none",
-      opacity: "0",
-      transform: "translateY(-10px)",
-      willChange: "transform, opacity",
-    });
-
-    document.body.appendChild(indicator);
-    return indicator;
-  }
-
-  /**
-   * Show status indicator with message
-   * @param {string} message - Status message to display
-   * @param {number} duration - Duration to show in milliseconds (optional)
-   */
-  function showStatusIndicator(message, duration = 2000) {
-    if (!LocatorState.statusIndicatorDiv) {
-      LocatorState.statusIndicatorDiv = createStatusIndicator();
-    }
-
-    const indicator = LocatorState.statusIndicatorDiv;
-    indicator.textContent = message;
-    indicator.style.display = "block";
-
-    // Animate in
-    requestAnimationFrame(() => {
-      indicator.style.opacity = "1";
-      indicator.style.transform = "translateY(0)";
-    });
-
-    // Auto-hide after duration
-    if (duration > 0) {
-      setTimeout(() => {
-        hideStatusIndicator();
-      }, duration);
-    }
-  }
-
-  /**
-   * Hide status indicator
-   */
-  function hideStatusIndicator() {
-    if (!LocatorState.statusIndicatorDiv) return;
-
-    const indicator = LocatorState.statusIndicatorDiv;
-    indicator.style.opacity = "0";
-    indicator.style.transform = "translateY(-10px)";
-
-    setTimeout(() => {
-      indicator.style.display = "none";
-    }, 200);
-  }
 
 
 
@@ -1249,186 +882,20 @@
 
 
 
-  /**
-   * Trigger visual feedback animations for navigation actions
-   * @param {string} action - Type of action ('navigate', 'boundary', 'error')
-   * @param {string} direction - Direction of navigation ('up', 'down', 'left', 'right', 'enter')
-   */
-  function triggerVisualFeedback(action, direction) {
-    switch (action) {
-      case 'navigate':
-        triggerBounceAnimation(direction);
-        triggerScaleAnimation();
-        break;
-      case 'boundary':
-        triggerBounceAnimation(direction);
-        triggerPulseAnimation();
-        break;
-      case 'error':
-        triggerErrorAnimation(direction);
-        break;
-    }
-  }
 
-  /**
-   * Trigger bounce animation for navigation indicator (static - no animation)
-   * @param {string} direction - Direction of navigation
-   */
-  function triggerBounceAnimation(direction) {
-    // Navigation indicators are now static - no bounce animation
-    // This function is kept for compatibility but does nothing
-    // eslint-disable-next-line no-unused-vars
-    void direction;
-    return;
-  }
 
-  /**
-   * Trigger enhanced scale animation for overlay selection
-   */
-  function triggerScaleAnimation() {
-    const overlay = LocatorState.overlayDiv;
-    if (!overlay || overlay.style.display === 'none') return;
 
-    const scale = VISUAL_FEEDBACK_STYLES.scale;
-    const originalTransform = overlay.style.transform || 'scale(1)';
-    const originalBoxShadow = overlay.style.boxShadow;
 
-    // Apply enhanced scale animation with glow effect
-    Object.assign(overlay.style, {
-      transition: `transform ${scale.duration}ms ${scale.easing}, box-shadow ${scale.duration}ms ease-out`,
-      transform: `scale(${scale.maxScale})`,
-      boxShadow: originalBoxShadow + ', 0 0 20px rgba(0, 123, 255, 0.4)',
-    });
 
-    // Return to original scale with faster return
-    setTimeout(() => {
-      Object.assign(overlay.style, {
-        transition: `transform ${scale.returnDuration}ms cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow ${scale.returnDuration}ms ease-out`,
-        transform: originalTransform,
-        boxShadow: originalBoxShadow,
-      });
 
-      // Reset transition after animation completes
-      setTimeout(() => {
-        overlay.style.transition = OVERLAY_STYLES.transition;
-      }, scale.returnDuration);
-    }, scale.duration / 2);
-  }
 
-  /**
-   * Trigger enhanced pulse animation for boundary navigation
-   */
-  function triggerPulseAnimation() {
-    const overlay = LocatorState.overlayDiv;
-    if (!overlay || overlay.style.display === 'none') return;
 
-    const pulse = VISUAL_FEEDBACK_STYLES.pulse;
-    const originalBoxShadow = overlay.style.boxShadow;
-    const originalTransform = overlay.style.transform || 'scale(1)';
 
-    // Create enhanced pulsing effect with scale and glow
-    const pulseBoxShadow = originalBoxShadow + `, 0 0 ${20 * pulse.intensity}px rgba(255, 140, 0, 0.6)`;
-    const pulseTransform = `scale(${1 + (0.05 * pulse.intensity)})`;
 
-    overlay.style.transition = `box-shadow ${pulse.duration / pulse.iterations}ms ${pulse.easing}, transform ${pulse.duration / pulse.iterations}ms ${pulse.easing}`;
 
-    let iteration = 0;
-    const pulseInterval = setInterval(() => {
-      if (iteration % 2 === 0) {
-        Object.assign(overlay.style, {
-          boxShadow: pulseBoxShadow,
-          transform: pulseTransform,
-        });
-      } else {
-        Object.assign(overlay.style, {
-          boxShadow: originalBoxShadow,
-          transform: originalTransform,
-        });
-      }
 
-      iteration++;
-      if (iteration >= pulse.iterations * 2) {
-        clearInterval(pulseInterval);
-        // Ensure we end in the original state
-        Object.assign(overlay.style, {
-          boxShadow: originalBoxShadow,
-          transform: originalTransform,
-        });
-        setTimeout(() => {
-          overlay.style.transition = OVERLAY_STYLES.transition;
-        }, pulse.duration / pulse.iterations);
-      }
-    }, pulse.duration / pulse.iterations);
-  }
 
-  /**
-   * Trigger enhanced error animation (subtle shake with visual feedback)
-   * @param {string} direction - Direction context for the error (optional)
-   */
-  function triggerErrorAnimation(direction) {
-    const overlay = LocatorState.overlayDiv;
-    if (!overlay || overlay.style.display === 'none') return;
 
-    const error = VISUAL_FEEDBACK_STYLES.error;
-    const originalTransform = overlay.style.transform || 'scale(1)';
-    const originalBorder = overlay.style.border;
-
-    // Add error visual state
-    overlay.style.border = '2px solid rgba(220, 53, 69, 0.8)';
-    overlay.style.transition = `transform ${error.duration / error.iterations}ms ${error.easing}, border-color ${error.duration}ms ease-out`;
-
-    let iteration = 0;
-    const shakeInterval = setInterval(() => {
-      let shakeTransform;
-
-      if (direction === 'enter') {
-        // Vertical shake for Enter key errors
-        const offset = (iteration % 2 === 0) ? -error.distance : error.distance;
-        shakeTransform = `translateY(${offset}px) scale(1)`;
-      } else {
-        // Horizontal shake for navigation errors
-        const offset = (iteration % 2 === 0) ? -error.distance : error.distance;
-        shakeTransform = `translateX(${offset}px) scale(1)`;
-      }
-
-      overlay.style.transform = shakeTransform;
-      iteration++;
-
-      if (iteration >= error.iterations) {
-        clearInterval(shakeInterval);
-        // Return to original state
-        Object.assign(overlay.style, {
-          transform: originalTransform,
-          border: originalBorder,
-          transition: OVERLAY_STYLES.transition,
-        });
-      }
-    }, error.duration / error.iterations);
-  }
-
-  /**
-   * Trigger shimmer animation for initial appearance
-   */
-  function triggerShimmerAnimation() {
-    const overlay = LocatorState.overlayDiv;
-    if (!overlay || overlay.style.display === 'none') return;
-
-    const shimmer = VISUAL_FEEDBACK_STYLES.shimmer;
-    const originalBoxShadow = overlay.style.boxShadow;
-
-    // Create shimmer effect
-    const shimmerBoxShadow = originalBoxShadow + ', 0 0 30px rgba(0, 123, 255, 0.5)';
-
-    overlay.style.transition = `box-shadow ${shimmer.duration}ms ${shimmer.easing}`;
-    overlay.style.boxShadow = shimmerBoxShadow;
-
-    setTimeout(() => {
-      overlay.style.boxShadow = originalBoxShadow;
-      setTimeout(() => {
-        overlay.style.transition = OVERLAY_STYLES.transition;
-      }, shimmer.duration / 2);
-    }, shimmer.duration / 2);
-  }
 
 
 
@@ -1445,17 +912,6 @@
     if (!LocatorState.parentTooltipDiv) {
       LocatorState.parentTooltipDiv = createParentTooltipElement();
     }
-    if (!LocatorState.statusIndicatorDiv) {
-      LocatorState.statusIndicatorDiv = createStatusIndicator();
-    }
-
-    // Initialize navigation indicators
-    const directions = ['up', 'down', 'left', 'right'];
-    directions.forEach(direction => {
-      if (!LocatorState.navigationIndicators[direction]) {
-        LocatorState.navigationIndicators[direction] = createNavigationIndicator(direction);
-      }
-    });
   }
 
   // ============================================================================
@@ -1579,56 +1035,7 @@
     );
   }
 
-  /**
-   * Update navigation indicators with static positioning (no animations)
-   * @param {Object} overlayPosition - Overlay position for indicator positioning
-   * @param {Array} availableDirections - Array of available navigation directions
-   */
-  function updateNavigationIndicators(overlayPosition, availableDirections) {
-    const size = NAVIGATION_INDICATOR_STYLES.size;
-    const offset = NAVIGATION_INDICATOR_STYLES.offset;
 
-    // Hide all indicators first
-    LocatorState.hideNavigationIndicators();
-
-    // Show indicators for available directions instantly
-    availableDirections.forEach(direction => {
-      const indicator = LocatorState.navigationIndicators[direction];
-      if (!indicator) return;
-
-      let left, top;
-
-      switch (direction) {
-        case 'up':
-          left = overlayPosition.left + overlayPosition.width / 2 - size / 2;
-          top = overlayPosition.top - size - offset;
-          break;
-        case 'down':
-          left = overlayPosition.left + overlayPosition.width / 2 - size / 2;
-          top = overlayPosition.top + overlayPosition.height + offset;
-          break;
-        case 'left':
-          left = overlayPosition.left - size - offset;
-          top = overlayPosition.top + overlayPosition.height / 2 - size / 2;
-          break;
-        case 'right':
-          left = overlayPosition.left + overlayPosition.width + offset;
-          top = overlayPosition.top + overlayPosition.height / 2 - size / 2;
-          break;
-      }
-
-      // Ensure indicators stay within viewport
-      left = Math.max(0, Math.min(left, window.innerWidth - size));
-      top = Math.max(0, Math.min(top, window.innerHeight - size));
-
-      // Set position and show immediately (no animations)
-      Object.assign(indicator.style, {
-        left: `${left}px`,
-        top: `${top}px`,
-        display: "flex", // Use flex for perfect centering
-      });
-    });
-  }
 
   // ============================================================================
   // OVERLAY UPDATE LOGIC
@@ -1670,12 +1077,6 @@
 
     // Update tooltip
     updateTooltipPosition(`${scalafilename}:${scalasourceline}`, overlayPosition);
-
-    // Update navigation indicators if in keyboard mode
-    if (LocatorState.navigationMode === 'keyboard') {
-      const context = analyzeNavigationContext(targetElement);
-      updateNavigationIndicators(overlayPosition, context.availableDirections);
-    }
   }
 
   /**
@@ -1685,7 +1086,7 @@
   function applyOverlayStyles(position) {
     const isKeyboardMode = LocatorState.navigationMode === 'keyboard';
     const overlay = LocatorState.overlayDiv;
-    const wasVisible = overlay.style.display === "block";
+
 
     // Batch DOM operations for better performance
     batchDOMOperations(() => {
@@ -1716,10 +1117,7 @@
 
       Object.assign(overlay.style, styles);
 
-      // Trigger entrance animation for new overlays
-      if (!wasVisible) {
-        triggerShimmerAnimation();
-      }
+
     });
   }
 
@@ -1731,51 +1129,14 @@
   function updateTooltipPosition(content, overlayPosition) {
     const tooltip = LocatorState.tooltipDiv;
     const isKeyboardMode = LocatorState.navigationMode === 'keyboard';
-    const currentElement = LocatorState.currentTargetElement;
+
     const wasVisible = tooltip.style.display === "block" && tooltip.style.opacity !== "0";
 
     // Build enhanced tooltip content
     let tooltipContent = content;
 
-    if (isKeyboardMode && currentElement) {
-      const context = analyzeNavigationContext(currentElement);
-      const navigationHints = getNavigationHints(currentElement);
-
-      // Add navigation information
-      const parts = [content];
-
-      // Add navigation hints
-      if (navigationHints && navigationHints !== "No navigation available") {
-        parts.push(navigationHints);
-      }
-
-      // Add detailed context information
-      const contextParts = [];
-
-      if (context.hasParent) {
-        contextParts.push(`Parent: ${context.parentInfo.filename}:${context.parentInfo.line}`);
-      } else {
-        contextParts.push("Root level");
-      }
-
-      if (context.siblingCount > 0) {
-        contextParts.push(`${context.siblingPosition}/${context.siblingCount + 1} siblings`);
-      }
-
-      if (context.hasChildren) {
-        contextParts.push(`${context.childCount} child${context.childCount === 1 ? '' : 'ren'}`);
-      }
-
-      if (contextParts.length > 0) {
-        parts.push(contextParts.join(' • '));
-      }
-
-      // Add basic navigation hint
-      parts.push("Alt+↑↓←→ to navigate • Enter to open");
-
-      tooltipContent = parts.join('\n');
-    } else if (isKeyboardMode) {
-      tooltipContent += " • Alt+↑↓←→ to navigate";
+    if (isKeyboardMode) {
+      tooltipContent += " • Alt+↑↓←→ to navigate • Enter to open";
     }
 
     // Apply enhanced styling based on mode
@@ -2130,31 +1491,18 @@
       switch (event.key) {
         case "ArrowUp":
           event.preventDefault();
-          // Show keyboard navigation status if first time
-          if (!LocatorState.keyboardNavigationActive) {
-            showStatusIndicator("Keyboard navigation active", 1500);
-          }
           handleKeyboardNavigation('up');
           return;
         case "ArrowDown":
           event.preventDefault();
-          if (!LocatorState.keyboardNavigationActive) {
-            showStatusIndicator("Keyboard navigation active", 1500);
-          }
           handleKeyboardNavigation('down');
           return;
         case "ArrowLeft":
           event.preventDefault();
-          if (!LocatorState.keyboardNavigationActive) {
-            showStatusIndicator("Keyboard navigation active", 1500);
-          }
           handleKeyboardNavigation('left');
           return;
         case "ArrowRight":
           event.preventDefault();
-          if (!LocatorState.keyboardNavigationActive) {
-            showStatusIndicator("Keyboard navigation active", 1500);
-          }
           handleKeyboardNavigation('right');
           return;
       }
