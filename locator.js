@@ -496,8 +496,8 @@
    */
   function navigateToNextSibling(currentElement) {
     if (!currentElement) return null;
-    const siblings = findSiblingComponents(currentElement);
-    return getNextSibling(currentElement, siblings);
+    const allSiblings = getAllSiblingsIncludingCurrent(currentElement);
+    return getNextSibling(currentElement, allSiblings);
   }
 
   /**
@@ -507,8 +507,8 @@
    */
   function navigateToPreviousSibling(currentElement) {
     if (!currentElement) return null;
-    const siblings = findSiblingComponents(currentElement);
-    return getPreviousSibling(currentElement, siblings);
+    const allSiblings = getAllSiblingsIncludingCurrent(currentElement);
+    return getPreviousSibling(currentElement, allSiblings);
   }
 
   /**
@@ -694,6 +694,22 @@
 
     const siblings = findChildComponents(parent);
     return siblings.filter(el => el !== currentElement);
+  }
+
+  /**
+   * Get all sibling components including the current element in DOM order
+   * @param {Element} currentElement - Current element
+   * @returns {Array} Array of all sibling elements including current element
+   */
+  function getAllSiblingsIncludingCurrent(currentElement) {
+    const parent = findParentComponent(currentElement);
+    if (!parent) {
+      // If no parent component, get all top-level components
+      return findTopLevelComponents();
+    }
+
+    // Get all children of parent (which includes current element and its siblings)
+    return findChildComponents(parent);
   }
 
   /**

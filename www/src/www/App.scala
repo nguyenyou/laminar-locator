@@ -23,6 +23,8 @@ case class App() extends UIComponent {
       flexDirection.column,
       padding.px(12),
       alignItems.start,
+      Button()(),
+      Button()(),
       Card("Example Card")(
         p("This is some content inside the card."),
         Button()(),
