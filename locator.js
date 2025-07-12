@@ -1294,13 +1294,6 @@
         this.state.setKeyboardSelectedElement(targetElement);
         this.state.setCurrentTargetElement(targetElement);
 
-        // Apply visual feedback
-        this.applyActiveState();
-
-        // Remove active state after brief feedback
-        setTimeout(() => {
-          this.removeActiveState();
-        }, 200);
       }
     }
 
