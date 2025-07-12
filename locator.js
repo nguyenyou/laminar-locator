@@ -115,15 +115,7 @@
         --locator-primary-shadow-light: rgba(0, 123, 255, 0.25);
         --locator-primary-shadow-medium: rgba(0, 123, 255, 0.35);
 
-        /* Locator Colors - Keyboard Theme (Orange) */
-        --locator-keyboard-color: #ff8c00;
-        --locator-keyboard-bg: rgba(255, 140, 0, 0.15);
-        --locator-keyboard-bg-medium: rgba(255, 140, 0, 0.22);
-        --locator-keyboard-shadow-light: rgba(255, 140, 0, 0.3);
-        --locator-keyboard-shadow-medium: rgba(255, 140, 0, 0.5);
-        --locator-keyboard-shadow-active: rgba(255, 140, 0, 0.6);
-        --locator-keyboard-border-accent: rgba(255, 140, 0, 0.3);
-        --locator-keyboard-glow: rgba(255, 140, 0, 0.2);
+
 
         /* Locator Colors - Neutral */
         --locator-white: white;
@@ -189,10 +181,7 @@
         /* Locator Box Shadows */
         --locator-shadow-overlay: 0 0 0 1px var(--locator-white-semi), 0 4px 16px var(--locator-primary-shadow-light), 0 2px 8px var(--locator-black-shadow-light);
         --locator-shadow-overlay-hover: 0 0 0 1px var(--locator-white-medium), 0 6px 20px var(--locator-primary-shadow-medium), 0 3px 12px var(--locator-black-shadow-medium);
-        --locator-shadow-overlay-keyboard: 0 0 0 2px var(--locator-white-strong), 0 0 16px var(--locator-keyboard-shadow-medium), 0 4px 20px var(--locator-keyboard-shadow-light);
-        --locator-shadow-overlay-keyboard-active: 0 0 0 2px var(--locator-white-strong), 0 0 20px var(--locator-keyboard-shadow-active), 0 6px 24px var(--locator-keyboard-shadow-medium);
         --locator-shadow-tooltip: 0 4px 20px var(--locator-black-shadow-max), 0 2px 8px var(--locator-black-shadow-strong);
-        --locator-shadow-tooltip-keyboard: 0 6px 24px var(--locator-black-shadow-ultra), 0 0 0 1px var(--locator-keyboard-glow);
         --locator-shadow-parent-tooltip: 0 8px 32px var(--locator-black-shadow-heavy);
 
         /* Locator Performance */
@@ -303,7 +292,6 @@
       // Keyboard navigation state
       this.keyboardNavigationActive = false;
       this.keyboardSelectedElement = null;
-      this.navigationMode = 'mouse'; // 'mouse' or 'keyboard'
 
       // Observer pattern for state changes
       this.observers = new Set();
@@ -347,7 +335,6 @@
       this.parentTooltipToggled = false;
       this.keyboardNavigationActive = false;
       this.keyboardSelectedElement = null;
-      this.navigationMode = 'mouse';
 
       if (this.parentTooltipTimeout) {
         clearTimeout(this.parentTooltipTimeout);
@@ -362,17 +349,13 @@
      * Set keyboard navigation mode and update visual state
      */
     setKeyboardNavigationActive(active) {
-      const wasActive = this.keyboardNavigationActive;
       this.keyboardNavigationActive = active;
-      this.navigationMode = active ? 'keyboard' : 'mouse';
 
       if (!active) {
         this.keyboardSelectedElement = null;
       }
 
-      if (wasActive !== active) {
-        this.notify('keyboardNavigationChanged', { active, mode: this.navigationMode });
-      }
+
     }
 
     /**
@@ -384,7 +367,6 @@
 
       if (element) {
         this.keyboardNavigationActive = true;
-        this.navigationMode = 'keyboard';
       }
 
       if (previousElement !== element) {
@@ -485,12 +467,11 @@
     }
 
     /**
-     * Get overlay styles based on navigation mode
-     * @param {string} mode - 'mouse' or 'keyboard'
+     * Get overlay styles for unified styling approach
      * @param {string} state - 'normal', 'hover', or 'active'
      * @returns {Object} Style object
      */
-    getOverlayStyles(mode = 'mouse', state = 'normal') {
+    getOverlayStyles(state = 'normal') {
       const baseStyles = {
         position: "fixed",
         pointerEvents: "auto",
@@ -500,47 +481,29 @@
         willChange: "transform, box-shadow",
       };
 
-      if (mode === 'keyboard') {
-        return {
-          ...baseStyles,
-          backgroundColor: this.getCSSProperty('keyboard-bg'),
-          border: `${this.getCSSProperty('border-width-thick')} solid ${this.getCSSProperty('keyboard-color')}`,
-          borderRadius: this.getCSSProperty('border-radius-large'),
-          boxShadow: state === 'active'
-            ? this.getCSSProperty('shadow-overlay-keyboard-active')
-            : this.getCSSProperty('shadow-overlay-keyboard'),
-          zIndex: this.getCSSProperty('overlay-z-index'),
-          transition: `${this.getCSSProperty('transition-normal')} ${this.getCSSProperty('easing-smooth')}`,
-          transform: state === 'active'
-            ? `scale(${this.getCSSProperty('scale-hover')})`
-            : 'scale(var(--locator-scale-normal))',
-        };
-      } else {
-        return {
-          ...baseStyles,
-          backgroundColor: state === 'hover'
-            ? this.getCSSProperty('primary-bg-medium')
-            : this.getCSSProperty('primary-bg-light'),
-          border: `${this.getCSSProperty('border-width')} solid ${this.getCSSProperty('primary-color')}`,
-          borderRadius: this.getCSSProperty('border-radius'),
-          boxShadow: state === 'hover'
-            ? this.getCSSProperty('shadow-overlay-hover')
-            : this.getCSSProperty('shadow-overlay'),
-          zIndex: this.getCSSProperty('overlay-z-index'),
-          transition: `all ${this.getCSSProperty('transition-normal')} ${this.getCSSProperty('easing-smooth')}`,
-          transform: state === 'hover'
-            ? `scale(${this.getCSSProperty('scale-hover')})`
-            : 'scale(var(--locator-scale-normal))',
-        };
-      }
+      return {
+        ...baseStyles,
+        backgroundColor: (state === 'hover' || state === 'active')
+          ? this.getCSSProperty('primary-bg-medium')
+          : this.getCSSProperty('primary-bg-light'),
+        border: `${this.getCSSProperty('border-width')} solid ${this.getCSSProperty('primary-color')}`,
+        borderRadius: this.getCSSProperty('border-radius'),
+        boxShadow: (state === 'hover' || state === 'active')
+          ? this.getCSSProperty('shadow-overlay-hover')
+          : this.getCSSProperty('shadow-overlay'),
+        zIndex: this.getCSSProperty('overlay-z-index'),
+        transition: `all ${this.getCSSProperty('transition-normal')} ${this.getCSSProperty('easing-smooth')}`,
+        transform: (state === 'hover' || state === 'active')
+          ? `scale(${this.getCSSProperty('scale-hover')})`
+          : 'scale(var(--locator-scale-normal))',
+      };
     }
 
     /**
-     * Get tooltip styles based on navigation mode
-     * @param {string} mode - 'mouse' or 'keyboard'
+     * Get tooltip styles for unified styling approach
      * @returns {Object} Style object
      */
-    getTooltipStyles(mode = 'mouse') {
+    getTooltipStyles() {
       const baseStyles = {
         position: "fixed",
         pointerEvents: "none",
@@ -549,7 +512,7 @@
         borderRadius: this.getCSSProperty('border-radius'),
         fontSize: this.getCSSProperty('font-size'),
         fontFamily: this.getCSSProperty('font-family'),
-        whiteSpace: mode === 'keyboard' ? "pre-line" : "nowrap",
+        whiteSpace: "nowrap",
         zIndex: this.getCSSProperty('tooltip-z-index'),
         display: "block",
         boxSizing: "border-box",
@@ -561,22 +524,12 @@
         transform: "translateY(0)",
       };
 
-      if (mode === 'keyboard') {
-        return {
-          ...baseStyles,
-          backgroundColor: this.getCSSProperty('black-overlay-strong'),
-          border: `${this.getCSSProperty('border-width-thin')} solid ${this.getCSSProperty('keyboard-border-accent')}`,
-          boxShadow: this.getCSSProperty('shadow-tooltip-keyboard'),
-          borderRadius: this.getCSSProperty('border-radius-large'),
-        };
-      } else {
-        return {
-          ...baseStyles,
-          backgroundColor: this.getCSSProperty('black-overlay'),
-          border: `${this.getCSSProperty('border-width-thin')} solid ${this.getCSSProperty('white-border')}`,
-          boxShadow: this.getCSSProperty('shadow-tooltip'),
-        };
-      }
+      return {
+        ...baseStyles,
+        backgroundColor: this.getCSSProperty('black-overlay'),
+        border: `${this.getCSSProperty('border-width-thin')} solid ${this.getCSSProperty('white-border')}`,
+        boxShadow: this.getCSSProperty('shadow-tooltip'),
+      };
     }
 
     /**
@@ -613,11 +566,7 @@
         case 'reset':
           this.hide();
           break;
-        case 'keyboardNavigationChanged':
-          if (this.isVisible) {
-            this.updateVisualMode();
-          }
-          break;
+
         case 'targetElementChanged':
           if (data.element) {
             this.show(data.element);
@@ -641,7 +590,7 @@
       div.id = "locator-overlay";
 
       // Apply base styles
-      const baseStyles = this.styleManager.getOverlayStyles(this.state.navigationMode, 'normal');
+      const baseStyles = this.styleManager.getOverlayStyles('normal');
       Object.assign(div.style, baseStyles);
       div.style.display = "none";
 
@@ -659,15 +608,11 @@
      */
     addEventListeners(element) {
       element.addEventListener("mouseenter", () => {
-        if (this.state.navigationMode === 'mouse') {
-          this.applyHoverState();
-        }
+        this.applyHoverState();
       });
 
       element.addEventListener("mouseleave", () => {
-        if (this.state.navigationMode === 'mouse') {
-          this.removeHoverState();
-        }
+        this.removeHoverState();
       });
 
       element.addEventListener("click", (event) => {
@@ -698,8 +643,9 @@
       const position = this.calculatePosition(targetRect);
       this.applyPosition(position);
 
-      // Update visual mode
-      this.updateVisualMode();
+      // Apply base styling
+      const styles = this.styleManager.getOverlayStyles('normal');
+      Object.assign(this.element.style, styles);
 
       this.isVisible = true;
     }
@@ -776,22 +722,12 @@
     }
 
     /**
-     * Update visual mode based on navigation state
-     */
-    updateVisualMode() {
-      if (!this.element) return;
-
-      const styles = this.styleManager.getOverlayStyles(this.state.navigationMode, 'normal');
-      Object.assign(this.element.style, styles);
-    }
-
-    /**
-     * Apply hover state styling
+     * Apply hover/active state styling
      */
     applyHoverState() {
-      if (!this.element || this.state.navigationMode !== 'mouse') return;
+      if (!this.element) return;
 
-      const styles = this.styleManager.getOverlayStyles('mouse', 'hover');
+      const styles = this.styleManager.getOverlayStyles('hover');
       Object.assign(this.element.style, {
         backgroundColor: styles.backgroundColor,
         boxShadow: styles.boxShadow,
@@ -800,12 +736,12 @@
     }
 
     /**
-     * Remove hover state styling
+     * Remove hover/active state styling
      */
     removeHoverState() {
-      if (!this.element || this.state.navigationMode !== 'mouse') return;
+      if (!this.element) return;
 
-      const styles = this.styleManager.getOverlayStyles('mouse', 'normal');
+      const styles = this.styleManager.getOverlayStyles('normal');
       Object.assign(this.element.style, {
         backgroundColor: styles.backgroundColor,
         boxShadow: styles.boxShadow,
@@ -814,31 +750,17 @@
     }
 
     /**
-     * Apply keyboard active state
+     * Apply active state (for keyboard navigation)
      */
-    applyKeyboardActiveState() {
-      if (!this.element || this.state.navigationMode !== 'keyboard') return;
-
-      const styles = this.styleManager.getOverlayStyles('keyboard', 'active');
-      Object.assign(this.element.style, {
-        backgroundColor: styles.backgroundColor,
-        boxShadow: styles.boxShadow,
-        transform: styles.transform,
-      });
+    applyActiveState() {
+      this.applyHoverState();
     }
 
     /**
-     * Remove keyboard active state
+     * Remove active state (for keyboard navigation)
      */
-    removeKeyboardActiveState() {
-      if (!this.element || this.state.navigationMode !== 'keyboard') return;
-
-      const styles = this.styleManager.getOverlayStyles('keyboard', 'normal');
-      Object.assign(this.element.style, {
-        backgroundColor: styles.backgroundColor,
-        boxShadow: styles.boxShadow,
-        transform: styles.transform,
-      });
+    removeActiveState() {
+      this.removeHoverState();
     }
 
     /**
@@ -920,11 +842,7 @@
             this.hideParent();
           }
           break;
-        case 'keyboardNavigationChanged':
-          if (this.isMainVisible) {
-            this.updateMainVisualMode();
-          }
-          break;
+
         case 'parentTooltipVisibilityChanged':
           if (data.visible) {
             this.showParentForCurrentElement();
@@ -948,7 +866,7 @@
       tooltip.id = "locator-tooltip";
 
       // Apply base styles
-      const styles = this.styleManager.getTooltipStyles(this.state.navigationMode);
+      const styles = this.styleManager.getTooltipStyles();
       Object.assign(tooltip.style, styles);
       tooltip.style.display = "none";
       tooltip.style.opacity = "0";
@@ -1018,13 +936,14 @@
 
       // Build tooltip content
       let content = `${scalafilename}:${scalasourceline}`;
-      if (this.state.navigationMode === 'keyboard') {
+      if (this.state.keyboardNavigationActive) {
         content += " • Alt+↑↓←→ to navigate • Enter to open";
       }
 
       // Update content and styles
       this.mainTooltip.textContent = content;
-      this.updateMainVisualMode();
+      const styles = this.styleManager.getTooltipStyles();
+      Object.assign(this.mainTooltip.style, styles);
 
       // Position tooltip
       this.positionMainTooltip();
@@ -1058,16 +977,7 @@
       this.isMainVisible = false;
     }
 
-    /**
-     * Update main tooltip visual mode
-     */
-    updateMainVisualMode() {
-      if (!this.mainTooltip) return;
 
-      const styles = this.styleManager.getTooltipStyles(this.state.navigationMode);
-      Object.assign(this.mainTooltip.style, styles);
-      this.mainTooltip.style.whiteSpace = this.state.navigationMode === 'keyboard' ? "pre-line" : "nowrap";
-    }
 
     /**
      * Position main tooltip relative to overlay
@@ -1448,20 +1358,20 @@
     }
 
     /**
-     * Apply keyboard active state visual feedback
+     * Apply active state visual feedback
      */
     applyActiveState() {
       if (this.overlayManager) {
-        this.overlayManager.applyKeyboardActiveState();
+        this.overlayManager.applyActiveState();
       }
     }
 
     /**
-     * Remove keyboard active state visual feedback
+     * Remove active state visual feedback
      */
     removeActiveState() {
       if (this.overlayManager) {
-        this.overlayManager.removeKeyboardActiveState();
+        this.overlayManager.removeActiveState();
       }
     }
 
@@ -1846,7 +1756,7 @@
 
       // Handle Enter key for opening selected component
       if (event.key === "Enter" && this.locatorSystem.state.altPressed &&
-          this.locatorSystem.state.navigationMode === 'keyboard') {
+          this.locatorSystem.state.keyboardNavigationActive) {
         event.preventDefault();
         this.locatorSystem.keyboard.openSelectedFile();
         return;
@@ -1931,8 +1841,7 @@
 
       if (this.locatorSystem.state.altPressed) {
         // Switch to mouse mode if in keyboard mode
-        const wasKeyboardMode = this.locatorSystem.state.navigationMode === 'keyboard';
-        if (wasKeyboardMode) {
+        if (this.locatorSystem.state.keyboardNavigationActive) {
           this.locatorSystem.state.setKeyboardNavigationActive(false);
         }
 
@@ -3642,7 +3551,7 @@
       return {
         altPressed: this.state.altPressed,
         shiftPressed: this.state.shiftPressed,
-        navigationMode: this.state.navigationMode,
+        keyboardNavigationActive: this.state.keyboardNavigationActive,
         currentTarget: this.state.currentTargetElement ? {
           filename: PropertyAccessor.getFilename(this.state.currentTargetElement),
           line: PropertyAccessor.getSourceLine(this.state.currentTargetElement),
