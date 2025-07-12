@@ -256,11 +256,11 @@
       this.lastTargetElement = null;
       this.currentMousePosition = { clientX: 0, clientY: 0 };
 
-      // Tooltip state
-      this.extraInfoTooltipVisible = false;
-      this.extraInfoTooltipTimeout = null;
-      this.extraInfoTooltipToggled = false;
+      // Unified tooltip state
       this.hierarchicalTooltipVisible = false;
+      this.hierarchicalTooltipTimeout = null;
+      this.hierarchicalTooltipToggled = false;
+      this.hierarchicalTooltipMode = 'auto'; // 'auto', 'parents-only', 'full-hierarchy'
 
       // Keyboard navigation state
       this.keyboardNavigationActive = false;
@@ -304,15 +304,15 @@
       this.currentTargetElement = null;
       this.lastTargetElement = null;
       this.currentMousePosition = { clientX: 0, clientY: 0 };
-      this.extraInfoTooltipVisible = false;
-      this.extraInfoTooltipToggled = false;
       this.hierarchicalTooltipVisible = false;
+      this.hierarchicalTooltipToggled = false;
+      this.hierarchicalTooltipMode = 'auto';
       this.keyboardNavigationActive = false;
       this.keyboardSelectedElement = null;
 
-      if (this.extraInfoTooltipTimeout) {
-        clearTimeout(this.extraInfoTooltipTimeout);
-        this.extraInfoTooltipTimeout = null;
+      if (this.hierarchicalTooltipTimeout) {
+        clearTimeout(this.hierarchicalTooltipTimeout);
+        this.hierarchicalTooltipTimeout = null;
       }
 
       this.resetCursor();
@@ -402,26 +402,16 @@
     }
 
     /**
-     * Set extra info tooltip visibility
-     */
-    setExtraInfoTooltipVisible(visible) {
-      const wasVisible = this.extraInfoTooltipVisible;
-      this.extraInfoTooltipVisible = visible;
-
-      if (wasVisible !== visible) {
-        this.notify('extraInfoTooltipVisibilityChanged', { visible });
-      }
-    }
-
-    /**
      * Set hierarchical tooltip visibility
      */
-    setHierarchicalTooltipVisible(visible) {
+    setHierarchicalTooltipVisible(visible, mode = 'auto') {
       const wasVisible = this.hierarchicalTooltipVisible;
+      const wasMode = this.hierarchicalTooltipMode;
       this.hierarchicalTooltipVisible = visible;
+      this.hierarchicalTooltipMode = mode;
 
-      if (wasVisible !== visible) {
-        this.notify('hierarchicalTooltipVisibilityChanged', { visible });
+      if (wasVisible !== visible || wasMode !== mode) {
+        this.notify('hierarchicalTooltipVisibilityChanged', { visible, mode });
       }
     }
   }
@@ -780,17 +770,15 @@
   }
 
   /**
-   * Tooltip management class for main tooltip and extra info tooltip functionality
+   * Tooltip management class for main tooltip and unified hierarchical tooltip functionality
    */
   class TooltipManager {
     constructor(state) {
       this.state = state;
       this.styleManager = new StyleManager('tooltip');
       this.mainTooltip = null;
-      this.extraInfoTooltip = null;
       this.hierarchicalTooltip = null;
       this.isMainVisible = false;
-      this.isExtraInfoVisible = false;
       this.isHierarchicalVisible = false;
 
       // Subscribe to state changes
@@ -808,7 +796,6 @@
       switch (type) {
         case 'reset':
           this.hideMain();
-          this.hideParent();
           this.hideHierarchical();
           break;
         case 'targetElementChanged':
@@ -816,22 +803,13 @@
             this.showMain(data.element);
           } else {
             this.hideMain();
-            this.hideParent();
             this.hideHierarchical();
-          }
-          break;
-
-        case 'extraInfoTooltipVisibilityChanged':
-          if (data.visible) {
-            this.showExtraInfoForCurrentElement();
-          } else {
-            this.hideExtraInfo();
           }
           break;
 
         case 'hierarchicalTooltipVisibilityChanged':
           if (data.visible) {
-            this.showHierarchicalForCurrentElement();
+            this.showHierarchicalForCurrentElement(data.mode);
           } else {
             this.hideHierarchical();
           }
@@ -874,42 +852,7 @@
       return tooltip;
     }
 
-    /**
-     * Create extra info tooltip element
-     * @returns {HTMLDivElement} Extra info tooltip element
-     */
-    createExtraInfoElement() {
-      if (this.extraInfoTooltip) {
-        return this.extraInfoTooltip;
-      }
 
-      const tooltip = document.createElement("div");
-      tooltip.id = "locator-extra-info-tooltip";
-
-      // Apply base styles
-      Object.assign(tooltip.style, {
-        position: "fixed",
-        pointerEvents: "none",
-        backgroundColor: this.styleManager.getCSSProperty('black-overlay'),
-        color: this.styleManager.getCSSProperty('white'),
-        padding: this.styleManager.getCSSProperty('tooltip-padding-large'),
-        borderRadius: this.styleManager.getCSSProperty('border-radius'),
-        fontSize: this.styleManager.getCSSProperty('font-size'),
-        fontFamily: this.styleManager.getCSSProperty('font-family'),
-        border: `${this.styleManager.getCSSProperty('border-width-thin')} solid ${this.styleManager.getCSSProperty('white-border')}`,
-        boxShadow: this.styleManager.getCSSProperty('shadow-extra-info-tooltip'),
-        whiteSpace: "nowrap",
-        zIndex: this.styleManager.getCSSProperty('extra-info-tooltip-z-index'),
-        display: "none",
-        boxSizing: "border-box",
-        transition: `all ${this.styleManager.getCSSProperty('transition-fast')} ${this.styleManager.getCSSProperty('easing-out')}`,
-        minWidth: this.styleManager.getCSSProperty('extra-info-tooltip-min-width'),
-      });
-
-      document.body.appendChild(tooltip);
-      this.extraInfoTooltip = tooltip;
-      return tooltip;
-    }
 
     /**
      * Show main tooltip for target element
@@ -1099,43 +1042,7 @@
       });
     }
 
-    /**
-     * Show extra info tooltip for current element
-     */
-    showExtraInfoForCurrentElement() {
-      if (!this.state.currentTargetElement || !this.isMainVisible) {
-        return;
-      }
 
-      const extraInfoCount = getExtraInfoTooltipCount();
-      if (extraInfoCount === 0) return;
-
-      const parents = findParentComponents(this.state.currentTargetElement, extraInfoCount);
-      if (parents.length === 0) return;
-
-      this.createExtraInfoElement();
-
-      // Create content
-      const content = this.createExtraInfoTooltipContent(parents);
-      this.extraInfoTooltip.innerHTML = content;
-
-      // Position relative to main tooltip
-      this.positionExtraInfoTooltip();
-
-      // Show
-      this.extraInfoTooltip.style.display = "block";
-      this.isExtraInfoVisible = true;
-    }
-
-    /**
-     * Hide extra info tooltip
-     */
-    hideExtraInfo() {
-      if (this.extraInfoTooltip) {
-        this.extraInfoTooltip.style.display = "none";
-      }
-      this.isExtraInfoVisible = false;
-    }
 
     /**
      * Hide hierarchical tooltip
@@ -1187,20 +1094,28 @@
 
     /**
      * Show hierarchical tooltip for current element
+     * @param {string} mode - Display mode: 'auto', 'parents-only', or 'full-hierarchy'
      */
-    showHierarchicalForCurrentElement() {
+    showHierarchicalForCurrentElement(mode = 'auto') {
       if (!this.state.currentTargetElement || !this.isMainVisible) {
         return;
       }
 
-      // Get hierarchical information
-      const hierarchicalInfo = this.getHierarchicalInfo(this.state.currentTargetElement);
+      // Determine display mode
+      let displayMode = mode;
+      if (mode === 'auto') {
+        // Auto mode: show parents-only if triggered by manual toggle, full hierarchy if Alt+Shift
+        displayMode = (this.state.altPressed && this.state.shiftPressed) ? 'full-hierarchy' : 'parents-only';
+      }
+
+      // Get hierarchical information based on mode
+      const hierarchicalInfo = this.getHierarchicalInfo(this.state.currentTargetElement, displayMode);
       if (!hierarchicalInfo.hasContent) return;
 
       this.createHierarchicalElement();
 
       // Create content
-      const content = this.createHierarchicalTooltipContent(hierarchicalInfo);
+      const content = this.createHierarchicalTooltipContent(hierarchicalInfo, displayMode);
       this.hierarchicalTooltip.innerHTML = content;
 
       // Position relative to main tooltip
@@ -1215,25 +1130,32 @@
     /**
      * Get hierarchical information for an element
      * @param {Element} element - Target element
+     * @param {string} mode - Display mode: 'parents-only' or 'full-hierarchy'
      * @returns {Object} Hierarchical information
      */
-    getHierarchicalInfo(element) {
-      const maxCount = 3; // Consistent with existing extra info tooltip limit
+    getHierarchicalInfo(element, mode = 'full-hierarchy') {
+      // For parents-only mode, use the localStorage setting for count
+      const parentCount = mode === 'parents-only' ? getExtraInfoTooltipCount() : 3;
+      const maxCount = 3; // For children and siblings in full hierarchy mode
 
-      // Get parents (existing functionality)
-      const parents = findParentComponents(element, maxCount);
+      // Get parents (always included)
+      const parents = findParentComponents(element, parentCount);
 
-      // Get children - need to access keyboard navigator for this
-      const children = this.getChildComponents(element, maxCount);
+      let children = [];
+      let siblings = [];
 
-      // Get siblings - need to access keyboard navigator for this
-      const siblings = this.getSiblingComponents(element, maxCount);
+      // Only get children and siblings for full hierarchy mode
+      if (mode === 'full-hierarchy') {
+        children = this.getChildComponents(element, maxCount);
+        siblings = this.getSiblingComponents(element, maxCount);
+      }
 
       return {
         parents,
         children,
         siblings,
-        hasContent: parents.length > 0 || children.length > 0 || siblings.length > 0
+        hasContent: parents.length > 0 || children.length > 0 || siblings.length > 0,
+        mode
       };
     }
 
@@ -1365,12 +1287,13 @@
     /**
      * Create hierarchical tooltip content
      * @param {Object} hierarchicalInfo - Hierarchical information
+     * @param {string} mode - Display mode: 'parents-only' or 'full-hierarchy'
      * @returns {string} HTML content
      */
-    createHierarchicalTooltipContent(hierarchicalInfo) {
+    createHierarchicalTooltipContent(hierarchicalInfo, mode = 'full-hierarchy') {
       const sections = [];
 
-      // Parents section
+      // Parents section (always included)
       if (hierarchicalInfo.parents.length > 0) {
         const parentItems = hierarchicalInfo.parents.map((parent, index) => {
           const indent = "  ".repeat(parent.level - 1);
@@ -1382,42 +1305,50 @@
           </div>`;
         });
 
-        sections.push(`
-          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom')};">Parent Components:</div>
-          ${parentItems.join("")}
-        `);
+        // For parents-only mode, don't show section header (matches original ExtraInfoTooltip behavior)
+        if (mode === 'parents-only') {
+          sections.push(parentItems.join(''));
+        } else {
+          sections.push(`
+            <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom')};">Parent Components:</div>
+            ${parentItems.join("")}
+          `);
+        }
       }
 
-      // Children section
-      if (hierarchicalInfo.children.length > 0) {
-        const childItems = hierarchicalInfo.children.map(child => {
-          const componentName = this.getComponentDisplayName(child.filename);
-          return `<div style="margin: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
-            <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};"> ├─ </span>
-            <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
-          </div>`;
-        });
+      // Children and siblings sections (only for full-hierarchy mode)
+      if (mode === 'full-hierarchy') {
+        // Children section
+        if (hierarchicalInfo.children.length > 0) {
+          const childItems = hierarchicalInfo.children.map(child => {
+            const componentName = this.getComponentDisplayName(child.filename);
+            return `<div style="margin: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
+              <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};"> ├─ </span>
+              <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
+            </div>`;
+          });
 
-        sections.push(`
-          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom')}; margin-top: ${sections.length > 0 ? this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom') : '0'};">Child Components:</div>
-          ${childItems.join("")}
-        `);
-      }
+          sections.push(`
+            <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom')}; margin-top: ${sections.length > 0 ? this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom') : '0'};">Child Components:</div>
+            ${childItems.join("")}
+          `);
+        }
 
-      // Siblings section
-      if (hierarchicalInfo.siblings.length > 0) {
-        const siblingItems = hierarchicalInfo.siblings.map(sibling => {
-          const componentName = this.getComponentDisplayName(sibling.filename);
-          return `<div style="margin: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
-            <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};"> ├─ </span>
-            <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
-          </div>`;
-        });
+        // Siblings section
+        if (hierarchicalInfo.siblings.length > 0) {
+          const siblingItems = hierarchicalInfo.siblings.map(sibling => {
+            const componentName = this.getComponentDisplayName(sibling.filename);
+            return `<div style="margin: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
+              <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};"> ├─ </span>
+              <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
+            </div>`;
+          });
 
-        sections.push(`
-          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom')}; margin-top: ${sections.length > 0 ? this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom') : '0'};">Sibling Components:</div>
-          ${siblingItems.join("")}
-        `);
+          sections.push(`
+            <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom')}; margin-top: ${sections.length > 0 ? this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom') : '0'};">Sibling Components:</div>
+            ${siblingItems.join("")}
+          `);
+        }
       }
 
       return sections.join("");
@@ -1490,84 +1421,7 @@
       };
     }
 
-    /**
-     * Create extra info tooltip content
-     * @param {Array} parents - Parent component information
-     * @returns {string} HTML content
-     */
-    createExtraInfoTooltipContent(parents) {
-      const items = parents.map((parent, index) => {
-        const indent = "  ".repeat(parent.level - 1);
-        const connector = index === 0 ? "└─ " : "├─ ";
-        const componentName = this.getComponentDisplayName(parent.filename);
-        return `<div style="margin: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
-          <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};">${indent}${connector}</span>
-          <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
-        </div>`;
-      });
 
-      return `
-        <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom')};">Parent Components:</div>
-        ${items.join("")}
-      `;
-    }
-
-    /**
-     * Position extra info tooltip relative to main tooltip
-     */
-    positionExtraInfoTooltip() {
-      if (!this.extraInfoTooltip || !this.mainTooltip) return;
-
-      const mainRect = this.mainTooltip.getBoundingClientRect();
-      const extraInfoRect = this.extraInfoTooltip.getBoundingClientRect();
-
-      const position = this.calculateExtraInfoTooltipPosition(mainRect, extraInfoRect.width, extraInfoRect.height);
-
-      Object.assign(this.extraInfoTooltip.style, {
-        left: `${position.left}px`,
-        top: `${position.top}px`,
-      });
-    }
-
-    /**
-     * Calculate extra info tooltip position
-     * @param {DOMRect} mainRect - Main tooltip bounds
-     * @param {number} extraInfoWidth - Extra info tooltip width
-     * @param {number} extraInfoHeight - Extra info tooltip height
-     * @returns {Object} Position object
-     */
-    calculateExtraInfoTooltipPosition(mainRect, extraInfoWidth, extraInfoHeight) {
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const margin = parseInt(this.styleManager.getCSSProperty('tooltip-margin')) || 8;
-
-      // Position strategies
-      const positions = [
-        // Right of main tooltip
-        { left: mainRect.right + margin, top: mainRect.top },
-        // Left of main tooltip
-        { left: mainRect.left - extraInfoWidth - margin, top: mainRect.top },
-        // Below main tooltip
-        { left: mainRect.left, top: mainRect.bottom + margin },
-        // Above main tooltip
-        { left: mainRect.left, top: mainRect.top - extraInfoHeight - margin },
-      ];
-
-      // Find first position that fits
-      for (const pos of positions) {
-        if (pos.left >= 0 && pos.top >= 0 &&
-            pos.left + extraInfoWidth <= viewportWidth &&
-            pos.top + extraInfoHeight <= viewportHeight) {
-          return pos;
-        }
-      }
-
-      // Fallback
-      return {
-        left: Math.max(0, Math.min(mainRect.right + margin, viewportWidth - extraInfoWidth)),
-        top: Math.max(0, Math.min(mainRect.top, viewportHeight - extraInfoHeight)),
-      };
-    }
 
     /**
      * Cleanup resources
@@ -1582,18 +1436,12 @@
         this.mainTooltip = null;
       }
 
-      if (this.extraInfoTooltip) {
-        this.extraInfoTooltip.remove();
-        this.extraInfoTooltip = null;
-      }
-
       if (this.hierarchicalTooltip) {
         this.hierarchicalTooltip.remove();
         this.hierarchicalTooltip = null;
       }
 
       this.isMainVisible = false;
-      this.isParentVisible = false;
       this.isHierarchicalVisible = false;
     }
   }
@@ -2113,23 +1961,23 @@
           this.locatorSystem.overlay.show(targetElement);
         }
 
-        // Check for auto-show extra info tooltip
+        // Check for auto-show hierarchical tooltip
         setTimeout(() => {
-          this.checkAutoShowExtraInfoTooltip();
+          this.checkAutoShowHierarchicalTooltip();
         }, 25);
       } else if (event.key === "Shift" && !this.locatorSystem.state.shiftPressed) {
         // Shift key pressed
         this.locatorSystem.state.setShiftPressed(true);
 
         if (this.locatorSystem.state.altPressed) {
-          // Both Alt and Shift held - handle extra info tooltip
+          // Both Alt and Shift held - handle hierarchical tooltip
           if (this.locatorSystem.state.currentTargetElement &&
               this.locatorSystem.tooltip.isMainVisible) {
-            if (this.locatorSystem.state.extraInfoTooltipVisible) {
-              this.toggleExtraInfoTooltip();
+            if (this.locatorSystem.state.hierarchicalTooltipVisible) {
+              this.toggleHierarchicalTooltip();
             } else {
               setTimeout(() => {
-                this.checkAutoShowExtraInfoTooltip();
+                this.checkAutoShowHierarchicalTooltip();
               }, 25);
             }
           }
@@ -2147,12 +1995,11 @@
         this.locatorSystem.state.setKeyboardNavigationActive(false);
         this.locatorSystem.overlay.hide();
         this.locatorSystem.tooltip.hideMain();
-        this.locatorSystem.tooltip.hideExtraInfo();
         this.locatorSystem.tooltip.hideHierarchical();
-        this.locatorSystem.state.extraInfoTooltipToggled = false;
+        this.locatorSystem.state.hierarchicalTooltipToggled = false;
       } else if (event.key === "Shift") {
         this.locatorSystem.state.setShiftPressed(false);
-        this.checkAutoHideExtraInfoTooltip();
+        this.checkAutoHideHierarchicalTooltip();
       }
     }
 
@@ -2188,13 +2035,12 @@
           }
         })();
 
-        // Debounce extra info tooltip check
+        // Debounce hierarchical tooltip check
         this.createDebouncedHandler(() => {
-          this.checkAutoShowExtraInfoTooltip();
+          this.checkAutoShowHierarchicalTooltip();
         }, DEBOUNCE_DELAY)();
       } else {
         this.locatorSystem.overlay.hide();
-        this.locatorSystem.tooltip.hideExtraInfo();
         this.locatorSystem.tooltip.hideHierarchical();
       }
     }
@@ -2235,29 +2081,24 @@
     }
 
     /**
-     * Check if extra info tooltip should be auto-shown
+     * Check if hierarchical tooltip should be auto-shown
      */
-    checkAutoShowExtraInfoTooltip() {
+    checkAutoShowHierarchicalTooltip() {
       if (!this.locatorSystem.state.altPressed || !this.locatorSystem.state.shiftPressed) return;
       if (!this.locatorSystem.state.currentTargetElement) return;
       if (!this.locatorSystem.tooltip.isMainVisible) return;
 
-      // Show hierarchical tooltip instead of just extra info tooltip when Alt+Shift is pressed
-      this.locatorSystem.state.setHierarchicalTooltipVisible(true);
+      // Show hierarchical tooltip in full-hierarchy mode when Alt+Shift is pressed
+      this.locatorSystem.state.setHierarchicalTooltipVisible(true, 'full-hierarchy');
     }
 
     /**
-     * Check if extra info tooltip should be auto-hidden
+     * Check if hierarchical tooltip should be auto-hidden
      */
-    checkAutoHideExtraInfoTooltip() {
-      if (this.locatorSystem.state.extraInfoTooltipToggled) return;
+    checkAutoHideHierarchicalTooltip() {
+      if (this.locatorSystem.state.hierarchicalTooltipToggled) return;
 
-      if ((!this.locatorSystem.state.altPressed || !this.locatorSystem.state.shiftPressed) &&
-          this.locatorSystem.state.extraInfoTooltipVisible) {
-        this.locatorSystem.state.setExtraInfoTooltipVisible(false);
-      }
-
-      // Also hide hierarchical tooltip when Alt+Shift is released
+      // Hide hierarchical tooltip when Alt+Shift is released
       if ((!this.locatorSystem.state.altPressed || !this.locatorSystem.state.shiftPressed) &&
           this.locatorSystem.state.hierarchicalTooltipVisible) {
         this.locatorSystem.state.setHierarchicalTooltipVisible(false);
@@ -2265,23 +2106,23 @@
     }
 
     /**
-     * Toggle extra info tooltip visibility
+     * Toggle hierarchical tooltip visibility (parents-only mode for manual toggle)
      */
-    toggleExtraInfoTooltip() {
+    toggleHierarchicalTooltip() {
       if (!this.locatorSystem.state.altPressed || !this.locatorSystem.state.currentTargetElement) return;
       if (!this.locatorSystem.tooltip.isMainVisible) return;
 
       const extraInfoCount = getExtraInfoTooltipCount();
       if (extraInfoCount === 0) return;
 
-      if (this.locatorSystem.state.extraInfoTooltipVisible) {
-        this.locatorSystem.state.setExtraInfoTooltipVisible(false);
-        this.locatorSystem.state.extraInfoTooltipToggled = false;
+      if (this.locatorSystem.state.hierarchicalTooltipVisible) {
+        this.locatorSystem.state.setHierarchicalTooltipVisible(false);
+        this.locatorSystem.state.hierarchicalTooltipToggled = false;
       } else {
         const parents = findParentComponents(this.locatorSystem.state.currentTargetElement, extraInfoCount);
         if (parents.length > 0) {
-          this.locatorSystem.state.setExtraInfoTooltipVisible(true);
-          this.locatorSystem.state.extraInfoTooltipToggled = true;
+          this.locatorSystem.state.setHierarchicalTooltipVisible(true, 'parents-only');
+          this.locatorSystem.state.hierarchicalTooltipToggled = true;
         }
       }
     }
@@ -3843,7 +3684,7 @@
       // Configuration
       this.options = {
         enableKeyboardNavigation: true,
-        enableExtraInfoTooltips: true,
+        enableHierarchicalTooltips: true,
         enableVisualFeedback: true,
         ...options
       };
@@ -3877,7 +3718,7 @@
         } : null,
         overlayVisible: this.overlay.isVisible,
         tooltipVisible: this.tooltip.isMainVisible,
-        extraInfoTooltipVisible: this.tooltip.isExtraInfoVisible,
+        hierarchicalTooltipVisible: this.tooltip.isHierarchicalVisible,
         keyboardNavigationActive: this.state.keyboardNavigationActive
       };
     }
@@ -3914,13 +3755,13 @@
     }
 
     /**
-     * Enable/disable extra info tooltips
-     * @param {boolean} enabled - Whether to enable extra info tooltips
+     * Enable/disable hierarchical tooltips
+     * @param {boolean} enabled - Whether to enable hierarchical tooltips
      */
-    setExtraInfoTooltipsEnabled(enabled) {
-      this.options.enableExtraInfoTooltips = enabled;
-      if (!enabled && this.state.extraInfoTooltipVisible) {
-        this.state.setExtraInfoTooltipVisible(false);
+    setHierarchicalTooltipsEnabled(enabled) {
+      this.options.enableHierarchicalTooltips = enabled;
+      if (!enabled && this.state.hierarchicalTooltipVisible) {
+        this.state.setHierarchicalTooltipVisible(false);
       }
     }
 
@@ -3965,7 +3806,7 @@
     exportConfig() {
       return {
         preferredIDE: PREFER_IDE_PROTOCOL,
-        extraInfoTooltipCount: getExtraInfoTooltipCount(),
+        hierarchicalTooltipParentCount: getExtraInfoTooltipCount(),
         options: { ...this.options }
       };
     }
@@ -3979,8 +3820,8 @@
         localStorage.setItem(PREFER_IDE_KEY, config.preferredIDE);
       }
 
-      if (typeof config.extraInfoTooltipCount === 'number') {
-        localStorage.setItem(EXTRA_INFO_TOOLTIP_COUNT_KEY, config.extraInfoTooltipCount.toString());
+      if (typeof config.hierarchicalTooltipParentCount === 'number') {
+        localStorage.setItem(EXTRA_INFO_TOOLTIP_COUNT_KEY, config.hierarchicalTooltipParentCount.toString());
       }
 
       if (config.options) {
@@ -4096,8 +3937,8 @@
   }
 
   /**
-   * Get the configured number of extra info components to display
-   * @returns {number} Number of extra info items to show (0-5)
+   * Get the configured number of parent components to display in hierarchical tooltip
+   * @returns {number} Number of parent components to show (0-5)
    */
   function getExtraInfoTooltipCount() {
     const stored = window.localStorage.getItem(EXTRA_INFO_TOOLTIP_COUNT_KEY);
@@ -4156,7 +3997,7 @@
     try {
       globalLocatorSystem = new LocatorSystem({
         enableKeyboardNavigation: true,
-        enableExtraInfoTooltips: true,
+        enableHierarchicalTooltips: true,
         enableVisualFeedback: true
       });
 

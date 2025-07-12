@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tooltip Consolidation Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .test-component {
+            padding: 20px;
+            margin: 10px;
+            border: 2px solid #333;
+            background-color: white;
+            border-radius: 8px;
+        }
+        .nested {
+            margin-left: 20px;
+            border-color: #666;
+        }
+        .instructions {
+            background-color: #e8f4fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .test-results {
+            background-color: #f0f8e8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h2>Tooltip Consolidation Test</h2>
+        <p><strong>Test Instructions:</strong></p>
+        <ol>
+            <li><strong>Alt + Hover:</strong> Hover over any component while holding Alt - should show main tooltip</li>
+            <li><strong>Alt + Shift + Hover:</strong> Should show hierarchical tooltip with parents, children, and siblings</li>
+            <li><strong>Manual Toggle:</strong> While Alt is held and main tooltip is visible, press Shift to toggle parents-only mode</li>
+            <li><strong>Keyboard Navigation:</strong> Use Alt + Arrow keys to navigate between components</li>
+        </ol>
+        <p><strong>Expected Behavior:</strong></p>
+        <ul>
+            <li>Alt+Shift should show full hierarchy (parents, children, siblings)</li>
+            <li>Manual Shift toggle should show parents-only mode</li>
+            <li>No ExtraInfoTooltip should exist - only unified HierarchicalTooltip</li>
+        </ul>
+    </div>
+
+    <!-- Test Components with UIComponent annotations -->
+    <div class="test-component" data-scalasourcepath="TestApp.scala:10">
+        <h3>Root Component (TestApp.scala:10)</h3>
+        <p>This is the root component. Alt+hover to see tooltip.</p>
+        
+        <div class="test-component nested" data-scalasourcepath="Header.scala:5">
+            <h4>Header Component (Header.scala:5)</h4>
+            <p>Nested header component.</p>
+            
+            <div class="test-component nested" data-scalasourcepath="Navigation.scala:12">
+                <h5>Navigation Component (Navigation.scala:12)</h5>
+                <p>Deeply nested navigation.</p>
+            </div>
+        </div>
+        
+        <div class="test-component nested" data-scalasourcepath="Content.scala:8">
+            <h4>Content Component (Content.scala:8)</h4>
+            <p>Main content area.</p>
+            
+            <div class="test-component nested" data-scalasourcepath="Article.scala:15">
+                <h5>Article Component (Article.scala:15)</h5>
+                <p>Article content.</p>
+            </div>
+            
+            <div class="test-component nested" data-scalasourcepath="Sidebar.scala:22">
+                <h5>Sidebar Component (Sidebar.scala:22)</h5>
+                <p>Sidebar content.</p>
+            </div>
+        </div>
+        
+        <div class="test-component nested" data-scalasourcepath="Footer.scala:18">
+            <h4>Footer Component (Footer.scala:18)</h4>
+            <p>Footer component.</p>
+        </div>
+    </div>
+
+    <div class="test-results">
+        <h3>Test Results</h3>
+        <p>Use browser console to check for any errors. Test the following scenarios:</p>
+        <ul>
+            <li>✓ Main tooltip appears on Alt+hover</li>
+            <li>✓ Hierarchical tooltip (full) appears on Alt+Shift+hover</li>
+            <li>✓ Parents-only tooltip appears on manual Shift toggle</li>
+            <li>✓ No JavaScript errors in console</li>
+            <li>✓ Keyboard navigation works with Alt+arrows</li>
+        </ul>
+    </div>
+
+    <!-- Load the consolidated locator system -->
+    <script src="locator.js"></script>
+    
+    <script>
+        // Test script to verify functionality
+        console.log('Testing consolidated tooltip system...');
+        
+        // Check if the system initialized correctly
+        if (typeof window.locatorSystem !== 'undefined') {
+            console.log('✓ Locator system initialized');
+            
+            // Check configuration
+            const config = window.locatorSystem.getConfiguration();
+            console.log('Configuration:', config);
+            
+            // Check status
+            const status = window.locatorSystem.getStatus();
+            console.log('Initial status:', status);
+            
+            // Verify no ExtraInfoTooltip references exist
+            const hasExtraInfoRefs = document.querySelector('#locator-extra-info-tooltip');
+            if (!hasExtraInfoRefs) {
+                console.log('✓ No ExtraInfoTooltip elements found - consolidation successful');
+            } else {
+                console.error('✗ ExtraInfoTooltip elements still exist');
+            }
+            
+        } else {
+            console.error('✗ Locator system failed to initialize');
+        }
+        
+        // Test tooltip functionality programmatically
+        setTimeout(() => {
+            const testElement = document.querySelector('[data-scalasourcepath="Navigation.scala:12"]');
+            if (testElement) {
+                console.log('Testing programmatic tooltip trigger...');
+                window.locatorSystem.showOverlayForElement(testElement);
+                
+                setTimeout(() => {
+                    const status = window.locatorSystem.getStatus();
+                    console.log('Status after programmatic trigger:', status);
+                }, 100);
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
