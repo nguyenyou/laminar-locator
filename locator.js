@@ -140,9 +140,9 @@
         --locator-tooltip-padding: 10px 14px;
         --locator-tooltip-padding-large: 12px 16px;
         --locator-tooltip-translate-offset: 4px;
-        --locator-parent-tooltip-margin: 4px;
-        --locator-parent-tooltip-margin-bottom: 8px;
-        --locator-parent-tooltip-min-width: 200px;
+        --locator-extra-info-tooltip-margin: 4px;
+        --locator-extra-info-tooltip-margin-bottom: 8px;
+        --locator-extra-info-tooltip-min-width: 200px;
 
         /* Locator Border Radius */
         --locator-border-radius: 6px;
@@ -151,7 +151,7 @@
         /* Locator Z-Index */
         --locator-overlay-z-index: 9999;
         --locator-tooltip-z-index: 10000;
-        --locator-parent-tooltip-z-index: 10001;
+        --locator-extra-info-tooltip-z-index: 10001;
 
         /* Locator Typography */
         --locator-font-size: 12px;
@@ -182,7 +182,7 @@
         --locator-shadow-overlay: 0 0 0 1px var(--locator-white-semi), 0 4px 16px var(--locator-primary-shadow-light), 0 2px 8px var(--locator-black-shadow-light);
         --locator-shadow-overlay-hover: 0 0 0 1px var(--locator-white-medium), 0 6px 20px var(--locator-primary-shadow-medium), 0 3px 12px var(--locator-black-shadow-medium);
         --locator-shadow-tooltip: 0 4px 20px var(--locator-black-shadow-max), 0 2px 8px var(--locator-black-shadow-strong);
-        --locator-shadow-parent-tooltip: 0 8px 32px var(--locator-black-shadow-heavy);
+        --locator-shadow-extra-info-tooltip: 0 8px 32px var(--locator-black-shadow-heavy);
 
         /* Locator Performance */
         --locator-throttle-delay: 50;
@@ -230,9 +230,9 @@
 
   const PREFER_IDE_KEY = "locator_prefer_ide_protocol";
   const PREFER_IDE_PROTOCOL = window.localStorage.getItem(PREFER_IDE_KEY) || "idea";
-  const PARENT_TOOLTIP_COUNT_KEY = "locator_parent_tooltip_count";
-  const DEFAULT_PARENT_COUNT = 5;
-  const MAX_PARENT_COUNT = 5;
+  const EXTRA_INFO_TOOLTIP_COUNT_KEY = "locator_extra_info_tooltip_count";
+  const DEFAULT_EXTRA_INFO_COUNT = 5;
+  const MAX_EXTRA_INFO_COUNT = 5;
   const EDITOR_PROTOCOL = {
     "idea": "idea://open?file=",
     "vscode": "vscode://file/",
@@ -257,9 +257,9 @@
       this.currentMousePosition = { clientX: 0, clientY: 0 };
 
       // Tooltip state
-      this.parentTooltipVisible = false;
-      this.parentTooltipTimeout = null;
-      this.parentTooltipToggled = false;
+      this.extraInfoTooltipVisible = false;
+      this.extraInfoTooltipTimeout = null;
+      this.extraInfoTooltipToggled = false;
       this.hierarchicalTooltipVisible = false;
 
       // Keyboard navigation state
@@ -304,15 +304,15 @@
       this.currentTargetElement = null;
       this.lastTargetElement = null;
       this.currentMousePosition = { clientX: 0, clientY: 0 };
-      this.parentTooltipVisible = false;
-      this.parentTooltipToggled = false;
+      this.extraInfoTooltipVisible = false;
+      this.extraInfoTooltipToggled = false;
       this.hierarchicalTooltipVisible = false;
       this.keyboardNavigationActive = false;
       this.keyboardSelectedElement = null;
 
-      if (this.parentTooltipTimeout) {
-        clearTimeout(this.parentTooltipTimeout);
-        this.parentTooltipTimeout = null;
+      if (this.extraInfoTooltipTimeout) {
+        clearTimeout(this.extraInfoTooltipTimeout);
+        this.extraInfoTooltipTimeout = null;
       }
 
       this.resetCursor();
@@ -402,14 +402,14 @@
     }
 
     /**
-     * Set parent tooltip visibility
+     * Set extra info tooltip visibility
      */
-    setParentTooltipVisible(visible) {
-      const wasVisible = this.parentTooltipVisible;
-      this.parentTooltipVisible = visible;
+    setExtraInfoTooltipVisible(visible) {
+      const wasVisible = this.extraInfoTooltipVisible;
+      this.extraInfoTooltipVisible = visible;
 
       if (wasVisible !== visible) {
-        this.notify('parentTooltipVisibilityChanged', { visible });
+        this.notify('extraInfoTooltipVisibilityChanged', { visible });
       }
     }
 
@@ -780,17 +780,17 @@
   }
 
   /**
-   * Tooltip management class for main tooltip and parent tooltip functionality
+   * Tooltip management class for main tooltip and extra info tooltip functionality
    */
   class TooltipManager {
     constructor(state) {
       this.state = state;
       this.styleManager = new StyleManager('tooltip');
       this.mainTooltip = null;
-      this.parentTooltip = null;
+      this.extraInfoTooltip = null;
       this.hierarchicalTooltip = null;
       this.isMainVisible = false;
-      this.isParentVisible = false;
+      this.isExtraInfoVisible = false;
       this.isHierarchicalVisible = false;
 
       // Subscribe to state changes
@@ -821,11 +821,11 @@
           }
           break;
 
-        case 'parentTooltipVisibilityChanged':
+        case 'extraInfoTooltipVisibilityChanged':
           if (data.visible) {
-            this.showParentForCurrentElement();
+            this.showExtraInfoForCurrentElement();
           } else {
-            this.hideParent();
+            this.hideExtraInfo();
           }
           break;
 
@@ -875,16 +875,16 @@
     }
 
     /**
-     * Create parent tooltip element
-     * @returns {HTMLDivElement} Parent tooltip element
+     * Create extra info tooltip element
+     * @returns {HTMLDivElement} Extra info tooltip element
      */
-    createParentElement() {
-      if (this.parentTooltip) {
-        return this.parentTooltip;
+    createExtraInfoElement() {
+      if (this.extraInfoTooltip) {
+        return this.extraInfoTooltip;
       }
 
       const tooltip = document.createElement("div");
-      tooltip.id = "locator-parent-tooltip";
+      tooltip.id = "locator-extra-info-tooltip";
 
       // Apply base styles
       Object.assign(tooltip.style, {
@@ -897,17 +897,17 @@
         fontSize: this.styleManager.getCSSProperty('font-size'),
         fontFamily: this.styleManager.getCSSProperty('font-family'),
         border: `${this.styleManager.getCSSProperty('border-width-thin')} solid ${this.styleManager.getCSSProperty('white-border')}`,
-        boxShadow: this.styleManager.getCSSProperty('shadow-parent-tooltip'),
+        boxShadow: this.styleManager.getCSSProperty('shadow-extra-info-tooltip'),
         whiteSpace: "nowrap",
-        zIndex: this.styleManager.getCSSProperty('parent-tooltip-z-index'),
+        zIndex: this.styleManager.getCSSProperty('extra-info-tooltip-z-index'),
         display: "none",
         boxSizing: "border-box",
         transition: `all ${this.styleManager.getCSSProperty('transition-fast')} ${this.styleManager.getCSSProperty('easing-out')}`,
-        minWidth: this.styleManager.getCSSProperty('parent-tooltip-min-width'),
+        minWidth: this.styleManager.getCSSProperty('extra-info-tooltip-min-width'),
       });
 
       document.body.appendChild(tooltip);
-      this.parentTooltip = tooltip;
+      this.extraInfoTooltip = tooltip;
       return tooltip;
     }
 
@@ -1100,41 +1100,41 @@
     }
 
     /**
-     * Show parent tooltip for current element
+     * Show extra info tooltip for current element
      */
-    showParentForCurrentElement() {
+    showExtraInfoForCurrentElement() {
       if (!this.state.currentTargetElement || !this.isMainVisible) {
         return;
       }
 
-      const parentCount = getParentTooltipCount();
-      if (parentCount === 0) return;
+      const extraInfoCount = getExtraInfoTooltipCount();
+      if (extraInfoCount === 0) return;
 
-      const parents = findParentComponents(this.state.currentTargetElement, parentCount);
+      const parents = findParentComponents(this.state.currentTargetElement, extraInfoCount);
       if (parents.length === 0) return;
 
-      this.createParentElement();
+      this.createExtraInfoElement();
 
       // Create content
-      const content = this.createParentTooltipContent(parents);
-      this.parentTooltip.innerHTML = content;
+      const content = this.createExtraInfoTooltipContent(parents);
+      this.extraInfoTooltip.innerHTML = content;
 
       // Position relative to main tooltip
-      this.positionParentTooltip();
+      this.positionExtraInfoTooltip();
 
       // Show
-      this.parentTooltip.style.display = "block";
-      this.isParentVisible = true;
+      this.extraInfoTooltip.style.display = "block";
+      this.isExtraInfoVisible = true;
     }
 
     /**
-     * Hide parent tooltip
+     * Hide extra info tooltip
      */
-    hideParent() {
-      if (this.parentTooltip) {
-        this.parentTooltip.style.display = "none";
+    hideExtraInfo() {
+      if (this.extraInfoTooltip) {
+        this.extraInfoTooltip.style.display = "none";
       }
-      this.isParentVisible = false;
+      this.isExtraInfoVisible = false;
     }
 
     /**
@@ -1157,7 +1157,7 @@
       this.hierarchicalTooltip.className = "locator-hierarchical-tooltip";
       this.hierarchicalTooltip.id = "locator-hierarchical-tooltip";
 
-      // Apply consistent styling with parent tooltip
+      // Apply consistent styling with extra info tooltip
       Object.assign(this.hierarchicalTooltip.style, {
         position: "fixed",
         pointerEvents: "none",
@@ -1168,7 +1168,7 @@
         fontSize: this.styleManager.getCSSProperty('font-size'),
         fontFamily: this.styleManager.getCSSProperty('font-family'),
         border: `${this.styleManager.getCSSProperty('border-width-thin')} solid ${this.styleManager.getCSSProperty('white-border')}`,
-        boxShadow: this.styleManager.getCSSProperty('shadow-parent-tooltip'),
+        boxShadow: this.styleManager.getCSSProperty('shadow-extra-info-tooltip'),
         whiteSpace: "normal", // Allow wrapping for hierarchical content
         zIndex: parseInt(this.styleManager.getCSSProperty('z-index')) + 3, // Higher than parent tooltip
         display: "none",
@@ -1218,7 +1218,7 @@
      * @returns {Object} Hierarchical information
      */
     getHierarchicalInfo(element) {
-      const maxCount = 3; // Consistent with existing parent tooltip limit
+      const maxCount = 3; // Consistent with existing extra info tooltip limit
 
       // Get parents (existing functionality)
       const parents = findParentComponents(element, maxCount);
@@ -1376,14 +1376,14 @@
           const indent = "  ".repeat(parent.level - 1);
           const connector = index === 0 ? "└─ " : "├─ ";
           const componentName = this.getComponentDisplayName(parent.filename);
-          return `<div style="margin: ${this.styleManager.getCSSProperty('parent-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
+          return `<div style="margin: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
             <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};">${indent}${connector}</span>
             <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
           </div>`;
         });
 
         sections.push(`
-          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('parent-tooltip-margin-bottom')};">Parent Components:</div>
+          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom')};">Parent Components:</div>
           ${parentItems.join("")}
         `);
       }
@@ -1392,14 +1392,14 @@
       if (hierarchicalInfo.children.length > 0) {
         const childItems = hierarchicalInfo.children.map(child => {
           const componentName = this.getComponentDisplayName(child.filename);
-          return `<div style="margin: ${this.styleManager.getCSSProperty('parent-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
+          return `<div style="margin: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
             <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};"> ├─ </span>
             <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
           </div>`;
         });
 
         sections.push(`
-          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('parent-tooltip-margin-bottom')}; margin-top: ${sections.length > 0 ? this.styleManager.getCSSProperty('parent-tooltip-margin-bottom') : '0'};">Child Components:</div>
+          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom')}; margin-top: ${sections.length > 0 ? this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom') : '0'};">Child Components:</div>
           ${childItems.join("")}
         `);
       }
@@ -1408,14 +1408,14 @@
       if (hierarchicalInfo.siblings.length > 0) {
         const siblingItems = hierarchicalInfo.siblings.map(sibling => {
           const componentName = this.getComponentDisplayName(sibling.filename);
-          return `<div style="margin: ${this.styleManager.getCSSProperty('parent-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
+          return `<div style="margin: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
             <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};"> ├─ </span>
             <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
           </div>`;
         });
 
         sections.push(`
-          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('parent-tooltip-margin-bottom')}; margin-top: ${sections.length > 0 ? this.styleManager.getCSSProperty('parent-tooltip-margin-bottom') : '0'};">Sibling Components:</div>
+          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom')}; margin-top: ${sections.length > 0 ? this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom') : '0'};">Sibling Components:</div>
           ${siblingItems.join("")}
         `);
       }
@@ -1491,52 +1491,52 @@
     }
 
     /**
-     * Create parent tooltip content
+     * Create extra info tooltip content
      * @param {Array} parents - Parent component information
      * @returns {string} HTML content
      */
-    createParentTooltipContent(parents) {
+    createExtraInfoTooltipContent(parents) {
       const items = parents.map((parent, index) => {
         const indent = "  ".repeat(parent.level - 1);
         const connector = index === 0 ? "└─ " : "├─ ";
         const componentName = this.getComponentDisplayName(parent.filename);
-        return `<div style="margin: ${this.styleManager.getCSSProperty('parent-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
+        return `<div style="margin: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
           <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};">${indent}${connector}</span>
           <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
         </div>`;
       });
 
       return `
-        <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('parent-tooltip-margin-bottom')};">Parent Components:</div>
+        <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('extra-info-tooltip-margin-bottom')};">Parent Components:</div>
         ${items.join("")}
       `;
     }
 
     /**
-     * Position parent tooltip relative to main tooltip
+     * Position extra info tooltip relative to main tooltip
      */
-    positionParentTooltip() {
-      if (!this.parentTooltip || !this.mainTooltip) return;
+    positionExtraInfoTooltip() {
+      if (!this.extraInfoTooltip || !this.mainTooltip) return;
 
       const mainRect = this.mainTooltip.getBoundingClientRect();
-      const parentRect = this.parentTooltip.getBoundingClientRect();
+      const extraInfoRect = this.extraInfoTooltip.getBoundingClientRect();
 
-      const position = this.calculateParentTooltipPosition(mainRect, parentRect.width, parentRect.height);
+      const position = this.calculateExtraInfoTooltipPosition(mainRect, extraInfoRect.width, extraInfoRect.height);
 
-      Object.assign(this.parentTooltip.style, {
+      Object.assign(this.extraInfoTooltip.style, {
         left: `${position.left}px`,
         top: `${position.top}px`,
       });
     }
 
     /**
-     * Calculate parent tooltip position
+     * Calculate extra info tooltip position
      * @param {DOMRect} mainRect - Main tooltip bounds
-     * @param {number} parentWidth - Parent tooltip width
-     * @param {number} parentHeight - Parent tooltip height
+     * @param {number} extraInfoWidth - Extra info tooltip width
+     * @param {number} extraInfoHeight - Extra info tooltip height
      * @returns {Object} Position object
      */
-    calculateParentTooltipPosition(mainRect, parentWidth, parentHeight) {
+    calculateExtraInfoTooltipPosition(mainRect, extraInfoWidth, extraInfoHeight) {
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
       const margin = parseInt(this.styleManager.getCSSProperty('tooltip-margin')) || 8;
@@ -1546,26 +1546,26 @@
         // Right of main tooltip
         { left: mainRect.right + margin, top: mainRect.top },
         // Left of main tooltip
-        { left: mainRect.left - parentWidth - margin, top: mainRect.top },
+        { left: mainRect.left - extraInfoWidth - margin, top: mainRect.top },
         // Below main tooltip
         { left: mainRect.left, top: mainRect.bottom + margin },
         // Above main tooltip
-        { left: mainRect.left, top: mainRect.top - parentHeight - margin },
+        { left: mainRect.left, top: mainRect.top - extraInfoHeight - margin },
       ];
 
       // Find first position that fits
       for (const pos of positions) {
         if (pos.left >= 0 && pos.top >= 0 &&
-            pos.left + parentWidth <= viewportWidth &&
-            pos.top + parentHeight <= viewportHeight) {
+            pos.left + extraInfoWidth <= viewportWidth &&
+            pos.top + extraInfoHeight <= viewportHeight) {
           return pos;
         }
       }
 
       // Fallback
       return {
-        left: Math.max(0, Math.min(mainRect.right + margin, viewportWidth - parentWidth)),
-        top: Math.max(0, Math.min(mainRect.top, viewportHeight - parentHeight)),
+        left: Math.max(0, Math.min(mainRect.right + margin, viewportWidth - extraInfoWidth)),
+        top: Math.max(0, Math.min(mainRect.top, viewportHeight - extraInfoHeight)),
       };
     }
 
@@ -1582,9 +1582,9 @@
         this.mainTooltip = null;
       }
 
-      if (this.parentTooltip) {
-        this.parentTooltip.remove();
-        this.parentTooltip = null;
+      if (this.extraInfoTooltip) {
+        this.extraInfoTooltip.remove();
+        this.extraInfoTooltip = null;
       }
 
       if (this.hierarchicalTooltip) {
@@ -2113,23 +2113,23 @@
           this.locatorSystem.overlay.show(targetElement);
         }
 
-        // Check for auto-show parent tooltip
+        // Check for auto-show extra info tooltip
         setTimeout(() => {
-          this.checkAutoShowParentTooltip();
+          this.checkAutoShowExtraInfoTooltip();
         }, 25);
       } else if (event.key === "Shift" && !this.locatorSystem.state.shiftPressed) {
         // Shift key pressed
         this.locatorSystem.state.setShiftPressed(true);
 
         if (this.locatorSystem.state.altPressed) {
-          // Both Alt and Shift held - handle parent tooltip
+          // Both Alt and Shift held - handle extra info tooltip
           if (this.locatorSystem.state.currentTargetElement &&
               this.locatorSystem.tooltip.isMainVisible) {
-            if (this.locatorSystem.state.parentTooltipVisible) {
-              this.toggleParentTooltip();
+            if (this.locatorSystem.state.extraInfoTooltipVisible) {
+              this.toggleExtraInfoTooltip();
             } else {
               setTimeout(() => {
-                this.checkAutoShowParentTooltip();
+                this.checkAutoShowExtraInfoTooltip();
               }, 25);
             }
           }
@@ -2147,12 +2147,12 @@
         this.locatorSystem.state.setKeyboardNavigationActive(false);
         this.locatorSystem.overlay.hide();
         this.locatorSystem.tooltip.hideMain();
-        this.locatorSystem.tooltip.hideParent();
+        this.locatorSystem.tooltip.hideExtraInfo();
         this.locatorSystem.tooltip.hideHierarchical();
-        this.locatorSystem.state.parentTooltipToggled = false;
+        this.locatorSystem.state.extraInfoTooltipToggled = false;
       } else if (event.key === "Shift") {
         this.locatorSystem.state.setShiftPressed(false);
-        this.checkAutoHideParentTooltip();
+        this.checkAutoHideExtraInfoTooltip();
       }
     }
 
@@ -2188,13 +2188,13 @@
           }
         })();
 
-        // Debounce parent tooltip check
+        // Debounce extra info tooltip check
         this.createDebouncedHandler(() => {
-          this.checkAutoShowParentTooltip();
+          this.checkAutoShowExtraInfoTooltip();
         }, DEBOUNCE_DELAY)();
       } else {
         this.locatorSystem.overlay.hide();
-        this.locatorSystem.tooltip.hideParent();
+        this.locatorSystem.tooltip.hideExtraInfo();
         this.locatorSystem.tooltip.hideHierarchical();
       }
     }
@@ -2235,26 +2235,26 @@
     }
 
     /**
-     * Check if parent tooltip should be auto-shown
+     * Check if extra info tooltip should be auto-shown
      */
-    checkAutoShowParentTooltip() {
+    checkAutoShowExtraInfoTooltip() {
       if (!this.locatorSystem.state.altPressed || !this.locatorSystem.state.shiftPressed) return;
       if (!this.locatorSystem.state.currentTargetElement) return;
       if (!this.locatorSystem.tooltip.isMainVisible) return;
 
-      // Show hierarchical tooltip instead of just parent tooltip when Alt+Shift is pressed
+      // Show hierarchical tooltip instead of just extra info tooltip when Alt+Shift is pressed
       this.locatorSystem.state.setHierarchicalTooltipVisible(true);
     }
 
     /**
-     * Check if parent tooltip should be auto-hidden
+     * Check if extra info tooltip should be auto-hidden
      */
-    checkAutoHideParentTooltip() {
-      if (this.locatorSystem.state.parentTooltipToggled) return;
+    checkAutoHideExtraInfoTooltip() {
+      if (this.locatorSystem.state.extraInfoTooltipToggled) return;
 
       if ((!this.locatorSystem.state.altPressed || !this.locatorSystem.state.shiftPressed) &&
-          this.locatorSystem.state.parentTooltipVisible) {
-        this.locatorSystem.state.setParentTooltipVisible(false);
+          this.locatorSystem.state.extraInfoTooltipVisible) {
+        this.locatorSystem.state.setExtraInfoTooltipVisible(false);
       }
 
       // Also hide hierarchical tooltip when Alt+Shift is released
@@ -2265,23 +2265,23 @@
     }
 
     /**
-     * Toggle parent tooltip visibility
+     * Toggle extra info tooltip visibility
      */
-    toggleParentTooltip() {
+    toggleExtraInfoTooltip() {
       if (!this.locatorSystem.state.altPressed || !this.locatorSystem.state.currentTargetElement) return;
       if (!this.locatorSystem.tooltip.isMainVisible) return;
 
-      const parentCount = getParentTooltipCount();
-      if (parentCount === 0) return;
+      const extraInfoCount = getExtraInfoTooltipCount();
+      if (extraInfoCount === 0) return;
 
-      if (this.locatorSystem.state.parentTooltipVisible) {
-        this.locatorSystem.state.setParentTooltipVisible(false);
-        this.locatorSystem.state.parentTooltipToggled = false;
+      if (this.locatorSystem.state.extraInfoTooltipVisible) {
+        this.locatorSystem.state.setExtraInfoTooltipVisible(false);
+        this.locatorSystem.state.extraInfoTooltipToggled = false;
       } else {
-        const parents = findParentComponents(this.locatorSystem.state.currentTargetElement, parentCount);
+        const parents = findParentComponents(this.locatorSystem.state.currentTargetElement, extraInfoCount);
         if (parents.length > 0) {
-          this.locatorSystem.state.setParentTooltipVisible(true);
-          this.locatorSystem.state.parentTooltipToggled = true;
+          this.locatorSystem.state.setExtraInfoTooltipVisible(true);
+          this.locatorSystem.state.extraInfoTooltipToggled = true;
         }
       }
     }
@@ -3843,7 +3843,7 @@
       // Configuration
       this.options = {
         enableKeyboardNavigation: true,
-        enableParentTooltips: true,
+        enableExtraInfoTooltips: true,
         enableVisualFeedback: true,
         ...options
       };
@@ -3877,7 +3877,7 @@
         } : null,
         overlayVisible: this.overlay.isVisible,
         tooltipVisible: this.tooltip.isMainVisible,
-        parentTooltipVisible: this.tooltip.isParentVisible,
+        extraInfoTooltipVisible: this.tooltip.isExtraInfoVisible,
         keyboardNavigationActive: this.state.keyboardNavigationActive
       };
     }
@@ -3914,13 +3914,13 @@
     }
 
     /**
-     * Enable/disable parent tooltips
-     * @param {boolean} enabled - Whether to enable parent tooltips
+     * Enable/disable extra info tooltips
+     * @param {boolean} enabled - Whether to enable extra info tooltips
      */
-    setParentTooltipsEnabled(enabled) {
-      this.options.enableParentTooltips = enabled;
-      if (!enabled && this.state.parentTooltipVisible) {
-        this.state.setParentTooltipVisible(false);
+    setExtraInfoTooltipsEnabled(enabled) {
+      this.options.enableExtraInfoTooltips = enabled;
+      if (!enabled && this.state.extraInfoTooltipVisible) {
+        this.state.setExtraInfoTooltipVisible(false);
       }
     }
 
@@ -3965,7 +3965,7 @@
     exportConfig() {
       return {
         preferredIDE: PREFER_IDE_PROTOCOL,
-        parentTooltipCount: getParentTooltipCount(),
+        extraInfoTooltipCount: getExtraInfoTooltipCount(),
         options: { ...this.options }
       };
     }
@@ -3979,8 +3979,8 @@
         localStorage.setItem(PREFER_IDE_KEY, config.preferredIDE);
       }
 
-      if (typeof config.parentTooltipCount === 'number') {
-        localStorage.setItem(PARENT_TOOLTIP_COUNT_KEY, config.parentTooltipCount.toString());
+      if (typeof config.extraInfoTooltipCount === 'number') {
+        localStorage.setItem(EXTRA_INFO_TOOLTIP_COUNT_KEY, config.extraInfoTooltipCount.toString());
       }
 
       if (config.options) {
@@ -4096,18 +4096,18 @@
   }
 
   /**
-   * Get the configured number of parent components to display
-   * @returns {number} Number of parents to show (0-3)
+   * Get the configured number of extra info components to display
+   * @returns {number} Number of extra info items to show (0-5)
    */
-  function getParentTooltipCount() {
-    const stored = window.localStorage.getItem(PARENT_TOOLTIP_COUNT_KEY);
+  function getExtraInfoTooltipCount() {
+    const stored = window.localStorage.getItem(EXTRA_INFO_TOOLTIP_COUNT_KEY);
     if (stored) {
       const count = parseInt(stored, 10);
-      if (!isNaN(count) && count >= 0 && count <= MAX_PARENT_COUNT) {
+      if (!isNaN(count) && count >= 0 && count <= MAX_EXTRA_INFO_COUNT) {
         return count;
       }
     }
-    return DEFAULT_PARENT_COUNT;
+    return DEFAULT_EXTRA_INFO_COUNT;
   }
 
   /**
@@ -4156,7 +4156,7 @@
     try {
       globalLocatorSystem = new LocatorSystem({
         enableKeyboardNavigation: true,
-        enableParentTooltips: true,
+        enableExtraInfoTooltips: true,
         enableVisualFeedback: true
       });
 
