@@ -10,6 +10,119 @@
   'use strict';
 
   // ============================================================================
+  // CSS CUSTOM PROPERTIES INJECTION
+  // ============================================================================
+
+  /**
+   * Inject CSS custom properties for locator styling
+   */
+  function injectLocatorCSSVariables() {
+    // Check if styles are already injected
+    if (document.getElementById('locator-css-variables')) {
+      return;
+    }
+
+    const style = document.createElement('style');
+    style.id = 'locator-css-variables';
+    style.textContent = `
+      :root {
+        /* Locator Colors - Primary Theme (Blue) */
+        --locator-primary-color: #007bff;
+        --locator-primary-bg-light: rgba(0, 123, 255, 0.12);
+        --locator-primary-bg-medium: rgba(0, 123, 255, 0.18);
+        --locator-primary-shadow-light: rgba(0, 123, 255, 0.25);
+        --locator-primary-shadow-medium: rgba(0, 123, 255, 0.35);
+
+        /* Locator Colors - Keyboard Theme (Orange) */
+        --locator-keyboard-color: #ff8c00;
+        --locator-keyboard-bg: rgba(255, 140, 0, 0.15);
+        --locator-keyboard-shadow-light: rgba(255, 140, 0, 0.3);
+        --locator-keyboard-shadow-medium: rgba(255, 140, 0, 0.5);
+        --locator-keyboard-border-accent: rgba(255, 140, 0, 0.3);
+        --locator-keyboard-glow: rgba(255, 140, 0, 0.2);
+
+        /* Locator Colors - Neutral */
+        --locator-white: white;
+        --locator-white-semi: rgba(255, 255, 255, 0.6);
+        --locator-white-medium: rgba(255, 255, 255, 0.7);
+        --locator-white-strong: rgba(255, 255, 255, 0.85);
+        --locator-white-border: rgba(255, 255, 255, 0.25);
+        --locator-gray-light: #ccc;
+        --locator-gray-medium: #888;
+        --locator-black-overlay: rgba(0, 0, 0, 0.92);
+        --locator-black-overlay-strong: rgba(20, 20, 20, 0.95);
+        --locator-black-shadow-light: rgba(0, 0, 0, 0.1);
+        --locator-black-shadow-medium: rgba(0, 0, 0, 0.15);
+        --locator-black-shadow-strong: rgba(0, 0, 0, 0.2);
+        --locator-black-shadow-heavy: rgba(0, 0, 0, 0.3);
+        --locator-black-shadow-max: rgba(0, 0, 0, 0.4);
+        --locator-black-shadow-ultra: rgba(0, 0, 0, 0.5);
+
+        /* Locator Spacing */
+        --locator-element-offset: 6px;
+        --locator-tooltip-margin: 10px;
+        --locator-tooltip-padding: 10px 14px;
+        --locator-tooltip-padding-large: 12px 16px;
+        --locator-tooltip-translate-offset: 4px;
+        --locator-parent-tooltip-margin: 4px;
+        --locator-parent-tooltip-margin-bottom: 8px;
+        --locator-parent-tooltip-min-width: 200px;
+
+        /* Locator Border Radius */
+        --locator-border-radius: 6px;
+        --locator-border-radius-large: 8px;
+
+        /* Locator Z-Index */
+        --locator-overlay-z-index: 9999;
+        --locator-tooltip-z-index: 10000;
+        --locator-parent-tooltip-z-index: 10001;
+
+        /* Locator Typography */
+        --locator-font-size: 12px;
+        --locator-font-size-small: 11px;
+        --locator-font-family: ui-monospace, 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+        --locator-line-height: 1.4;
+
+        /* Locator Borders */
+        --locator-border-width: 2px;
+        --locator-border-width-thick: 3px;
+        --locator-border-width-thin: 1px;
+
+        /* Locator Effects */
+        --locator-backdrop-blur: blur(8px);
+        --locator-scale-hover: 1.02;
+        --locator-scale-normal: 1;
+        --locator-scale-entrance: 0.95;
+
+        /* Locator Animations */
+        --locator-transition-fast: 0.1s;
+        --locator-transition-normal: 0.15s;
+        --locator-transition-slow: 0.2s;
+        --locator-transition-ultra-slow: 0.25s;
+        --locator-easing-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        --locator-easing-out: ease-out;
+
+        /* Locator Box Shadows */
+        --locator-shadow-overlay: 0 0 0 1px var(--locator-white-semi), 0 4px 16px var(--locator-primary-shadow-light), 0 2px 8px var(--locator-black-shadow-light);
+        --locator-shadow-overlay-hover: 0 0 0 1px var(--locator-white-medium), 0 6px 20px var(--locator-primary-shadow-medium), 0 3px 12px var(--locator-black-shadow-medium);
+        --locator-shadow-overlay-keyboard: 0 0 0 2px var(--locator-white-strong), 0 0 16px var(--locator-keyboard-shadow-medium), 0 4px 20px var(--locator-keyboard-shadow-light);
+        --locator-shadow-tooltip: 0 4px 20px var(--locator-black-shadow-max), 0 2px 8px var(--locator-black-shadow-strong);
+        --locator-shadow-tooltip-keyboard: 0 6px 24px var(--locator-black-shadow-ultra), 0 0 0 1px var(--locator-keyboard-glow);
+        --locator-shadow-parent-tooltip: 0 8px 32px var(--locator-black-shadow-heavy);
+
+        /* Locator Performance */
+        --locator-throttle-delay: 50;
+        --locator-debounce-delay: 100;
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  // Inject CSS variables immediately when script loads
+  injectLocatorCSSVariables();
+
+  // ============================================================================
   // CONSTANTS AND CONFIGURATION
   // ============================================================================
 
@@ -27,27 +140,27 @@
 
   // Overlay styling constants - consistent with modern design principles
   const OVERLAY_STYLES = {
-    backgroundColor: "rgba(0, 123, 255, 0.12)",
-    border: "2px solid #007bff",
-    borderRadius: "6px", // Consistent rounded corners
-    boxShadow: "0 0 0 1px rgba(255, 255, 255, 0.6), 0 4px 16px rgba(0, 123, 255, 0.25), 0 2px 8px rgba(0, 0, 0, 0.1)",
-    zIndex: "9999",
-    transition: "all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-    elementOffset: 6, // Consistent with card padding
+    backgroundColor: "var(--locator-primary-bg-light)",
+    border: `var(--locator-border-width) solid var(--locator-primary-color)`,
+    borderRadius: "var(--locator-border-radius)", // Consistent rounded corners
+    boxShadow: "var(--locator-shadow-overlay)",
+    zIndex: "var(--locator-overlay-z-index)",
+    transition: `all var(--locator-transition-normal) var(--locator-easing-smooth)`,
+    elementOffset: "var(--locator-element-offset)", // Consistent with card padding
 
     // Enhanced visual states
     hover: {
-      backgroundColor: "rgba(0, 123, 255, 0.18)",
-      boxShadow: "0 0 0 1px rgba(255, 255, 255, 0.7), 0 6px 20px rgba(0, 123, 255, 0.35), 0 3px 12px rgba(0, 0, 0, 0.15)",
-      transform: "scale(1.02)",
+      backgroundColor: "var(--locator-primary-bg-medium)",
+      boxShadow: "var(--locator-shadow-overlay-hover)",
+      transform: "scale(var(--locator-scale-hover))",
     },
 
     // Keyboard navigation specific styles - harmonious orange theme
     keyboard: {
-      backgroundColor: "rgba(255, 140, 0, 0.15)",
-      border: "3px solid #ff8c00",
-      boxShadow: "0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 16px rgba(255, 140, 0, 0.5), 0 4px 20px rgba(255, 140, 0, 0.3)",
-      borderRadius: "8px", // Slightly more rounded for keyboard mode distinction
+      backgroundColor: "var(--locator-keyboard-bg)",
+      border: `var(--locator-border-width-thick) solid var(--locator-keyboard-color)`,
+      boxShadow: "var(--locator-shadow-overlay-keyboard)",
+      borderRadius: "var(--locator-border-radius-large)", // Slightly more rounded for keyboard mode distinction
     }
   };
 
@@ -57,31 +170,31 @@
 
   // Tooltip styling constants - consistent with system design
   const TOOLTIP_STYLES = {
-    backgroundColor: "rgba(0, 0, 0, 0.92)",
-    color: "white",
-    padding: "10px 14px", // Consistent with card padding scale
-    borderRadius: "6px", // Matches overlay border radius
-    fontSize: "12px",
-    fontFamily: "ui-monospace, 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace",
-    border: "1px solid rgba(255, 255, 255, 0.25)",
-    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)",
-    zIndex: "10000",
-    margin: 10, // Consistent spacing
-    backdropFilter: "blur(8px)", // Modern backdrop blur effect
-    lineHeight: "1.4", // Comfortable reading
+    backgroundColor: "var(--locator-black-overlay)",
+    color: "var(--locator-white)",
+    padding: "var(--locator-tooltip-padding)", // Consistent with card padding scale
+    borderRadius: "var(--locator-border-radius)", // Matches overlay border radius
+    fontSize: "var(--locator-font-size)",
+    fontFamily: "var(--locator-font-family)",
+    border: `var(--locator-border-width-thin) solid var(--locator-white-border)`,
+    boxShadow: "var(--locator-shadow-tooltip)",
+    zIndex: "var(--locator-tooltip-z-index)",
+    margin: "var(--locator-tooltip-margin)", // Consistent spacing
+    backdropFilter: "var(--locator-backdrop-blur)", // Modern backdrop blur effect
+    lineHeight: "var(--locator-line-height)", // Comfortable reading
 
     // Enhanced visual states for keyboard mode
     keyboard: {
-      backgroundColor: "rgba(20, 20, 20, 0.95)",
-      border: "1px solid rgba(255, 140, 0, 0.3)",
-      boxShadow: "0 6px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 140, 0, 0.2)",
-      borderRadius: "8px", // Slightly more rounded to match keyboard overlay
+      backgroundColor: "var(--locator-black-overlay-strong)",
+      border: `var(--locator-border-width-thin) solid var(--locator-keyboard-border-accent)`,
+      boxShadow: "var(--locator-shadow-tooltip-keyboard)",
+      borderRadius: "var(--locator-border-radius-large)", // Slightly more rounded to match keyboard overlay
     }
   };
 
   // Performance constants
-  const MOUSEMOVE_THROTTLE_DELAY = 50; // ms
-  const DEBOUNCE_DELAY = 100; // ms for debouncing rapid state changes
+  const MOUSEMOVE_THROTTLE_DELAY = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--locator-throttle-delay')) || 50; // ms
+  const DEBOUNCE_DELAY = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--locator-debounce-delay')) || 100; // ms for debouncing rapid state changes
 
 
 
@@ -194,26 +307,30 @@
     hideOverlay() {
       if (this.overlayDiv && this.overlayDiv.style.display !== "none") {
         // Fade out overlay
-        this.overlayDiv.style.transition = "opacity 0.15s ease-out, transform 0.15s ease-out";
+        const transitionDuration = getComputedStyle(document.documentElement).getPropertyValue('--locator-transition-normal') || '0.15s';
+        this.overlayDiv.style.transition = `opacity ${transitionDuration} var(--locator-easing-out), transform ${transitionDuration} var(--locator-easing-out)`;
         this.overlayDiv.style.opacity = "0";
-        this.overlayDiv.style.transform = "scale(0.95)";
+        this.overlayDiv.style.transform = "scale(var(--locator-scale-entrance))";
 
+        const timeoutMs = parseFloat(transitionDuration) * 1000;
         setTimeout(() => {
           this.overlayDiv.style.display = "none";
           this.overlayDiv.style.opacity = "1";
-          this.overlayDiv.style.transform = "scale(1)";
+          this.overlayDiv.style.transform = "scale(var(--locator-scale-normal))";
           this.overlayDiv.style.transition = OVERLAY_STYLES.transition;
-        }, 150);
+        }, timeoutMs);
       }
 
       if (this.tooltipDiv && this.tooltipDiv.style.display !== "none") {
         // Fade out tooltip
         this.tooltipDiv.style.opacity = "0";
-        this.tooltipDiv.style.transform = "translateY(4px)";
+        this.tooltipDiv.style.transform = "translateY(var(--locator-tooltip-translate-offset))";
 
+        const transitionDuration = getComputedStyle(document.documentElement).getPropertyValue('--locator-transition-normal') || '0.15s';
+        const timeoutMs = parseFloat(transitionDuration) * 1000;
         setTimeout(() => {
           this.tooltipDiv.style.display = "none";
-        }, 150);
+        }, timeoutMs);
       }
 
 
@@ -773,9 +890,9 @@
       zIndex: OVERLAY_STYLES.zIndex,
       display: "none",
       boxSizing: "border-box",
-      transition: OVERLAY_STYLES.transition + ", transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+      transition: `${OVERLAY_STYLES.transition}, transform var(--locator-transition-ultra-slow) var(--locator-easing-smooth)`,
       cursor: "pointer",
-      transform: "scale(1)", // Initialize transform for animations
+      transform: "scale(var(--locator-scale-normal))", // Initialize transform for animations
       willChange: "transform, box-shadow", // Optimize for animations
     });
 
@@ -795,7 +912,7 @@
         Object.assign(div.style, {
           backgroundColor: OVERLAY_STYLES.backgroundColor,
           boxShadow: OVERLAY_STYLES.boxShadow,
-          transform: "scale(1)",
+          transform: "scale(var(--locator-scale-normal))",
         });
       }
     });
@@ -831,12 +948,12 @@
       zIndex: TOOLTIP_STYLES.zIndex,
       display: "none",
       boxSizing: "border-box",
-      transition: "all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+      transition: `all var(--locator-transition-slow) var(--locator-easing-smooth)`,
       backdropFilter: TOOLTIP_STYLES.backdropFilter,
       lineHeight: TOOLTIP_STYLES.lineHeight,
       willChange: "transform, opacity", // Optimize for animations
       opacity: "0",
-      transform: "translateY(4px)", // Initial position for entrance animation
+      transform: "translateY(var(--locator-tooltip-translate-offset))", // Initial position for entrance animation
     });
 
     document.body.appendChild(tooltip);
@@ -857,18 +974,18 @@
       pointerEvents: "none", // Changed to none since we're using keyboard interaction
       backgroundColor: TOOLTIP_STYLES.backgroundColor,
       color: TOOLTIP_STYLES.color,
-      padding: "12px 16px",
+      padding: "var(--locator-tooltip-padding-large)",
       borderRadius: TOOLTIP_STYLES.borderRadius,
       fontSize: TOOLTIP_STYLES.fontSize,
       fontFamily: TOOLTIP_STYLES.fontFamily,
       border: TOOLTIP_STYLES.border,
-      boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+      boxShadow: "var(--locator-shadow-parent-tooltip)",
       whiteSpace: "nowrap",
-      zIndex: (parseInt(TOOLTIP_STYLES.zIndex) + 1).toString(),
+      zIndex: "var(--locator-parent-tooltip-z-index)",
       display: "none",
       boxSizing: "border-box",
-      transition: "all 0.1s ease-out",
-      minWidth: "200px",
+      transition: `all var(--locator-transition-fast) var(--locator-easing-out)`,
+      minWidth: "var(--locator-parent-tooltip-min-width)",
     });
 
     document.body.appendChild(tooltip);
@@ -924,7 +1041,7 @@
    * @returns {Object} Position object with left, top, width, height
    */
   function calculateOverlayPosition(targetRect) {
-    const offset = OVERLAY_STYLES.elementOffset;
+    const offset = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--locator-element-offset')) || 6;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
@@ -958,7 +1075,7 @@
   function calculateTooltipPosition(overlayRect, tooltipWidth, tooltipHeight) {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    const margin = TOOLTIP_STYLES.margin;
+    const margin = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--locator-tooltip-margin')) || 10;
 
     // Define position calculation strategies
     const strategies = [
@@ -1192,7 +1309,7 @@
     if (!wasVisible) {
       // Start with entrance state
       tooltip.style.opacity = "0";
-      tooltip.style.transform = "translateY(4px)";
+      tooltip.style.transform = "translateY(var(--locator-tooltip-translate-offset))";
 
       // Animate to visible state
       requestAnimationFrame(() => {
@@ -1312,14 +1429,14 @@
     const items = parents.map((parent, index) => {
       const indent = "  ".repeat(parent.level - 1);
       const connector = index === 0 ? "└─ " : "├─ ";
-      return `<div style="margin: 4px 0; font-family: monospace;">
-        <span style="color: #888;">${indent}${connector}</span>
-        <span style="color: #fff;">${parent.filename}:${parent.line}</span>
+      return `<div style="margin: var(--locator-parent-tooltip-margin) 0; font-family: var(--locator-font-family);">
+        <span style="color: var(--locator-gray-medium);">${indent}${connector}</span>
+        <span style="color: var(--locator-white);">${parent.filename}:${parent.line}</span>
       </div>`;
     });
 
     return `
-      <div style="color: #ccc; font-size: 11px; margin-bottom: 8px;">Parent Components:</div>
+      <div style="color: var(--locator-gray-light); font-size: var(--locator-font-size-small); margin-bottom: var(--locator-parent-tooltip-margin-bottom);">Parent Components:</div>
       ${items.join("")}
     `;
   }
@@ -1334,7 +1451,7 @@
   function calculateParentTooltipPosition(mainTooltipRect, parentWidth, parentHeight) {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    const margin = 8;
+    const margin = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--locator-tooltip-margin')) || 8;
 
     // Try positions in order of preference: right, left, bottom, top
     const positions = [
