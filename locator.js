@@ -414,6 +414,8 @@
         this.notify('hierarchicalTooltipVisibilityChanged', { visible, mode });
       }
     }
+
+
   }
 
   /**
@@ -1053,6 +1055,8 @@
       }
       this.isHierarchicalVisible = false;
     }
+
+
 
     /**
      * Create hierarchical tooltip element
@@ -1970,16 +1974,14 @@
         this.locatorSystem.state.setShiftPressed(true);
 
         if (this.locatorSystem.state.altPressed) {
-          // Both Alt and Shift held - handle hierarchical tooltip
+          // Alt+Shift combination - show hierarchical tooltip
           if (this.locatorSystem.state.currentTargetElement &&
               this.locatorSystem.tooltip.isMainVisible) {
-            if (this.locatorSystem.state.hierarchicalTooltipVisible) {
-              this.toggleHierarchicalTooltip();
-            } else {
-              setTimeout(() => {
-                this.checkAutoShowHierarchicalTooltip();
-              }, 25);
-            }
+            // Always show hierarchical tooltip when Shift is pressed while Alt is held
+            // This creates the explicit re-trigger behavior
+            setTimeout(() => {
+              this.checkAutoShowHierarchicalTooltip();
+            }, 25);
           }
         }
       }
@@ -2019,6 +2021,12 @@
       this.locatorSystem.state.updateMousePosition(event.clientX, event.clientY);
 
       if (this.locatorSystem.state.altPressed) {
+        // Hide hierarchical tooltip immediately on any mouse movement when Alt+Shift is pressed
+        if (this.locatorSystem.state.altPressed && this.locatorSystem.state.shiftPressed &&
+            this.locatorSystem.state.hierarchicalTooltipVisible) {
+          this.locatorSystem.state.setHierarchicalTooltipVisible(false);
+        }
+
         // Switch to mouse mode if in keyboard mode
         const wasKeyboardMode = this.locatorSystem.state.keyboardNavigationActive;
         if (this.locatorSystem.state.keyboardNavigationActive) {
@@ -2034,11 +2042,6 @@
             this.locatorSystem.state.setCurrentTargetElement(this.locatorSystem.state.currentTargetElement);
           }
         })();
-
-        // Debounce hierarchical tooltip check
-        this.createDebouncedHandler(() => {
-          this.checkAutoShowHierarchicalTooltip();
-        }, DEBOUNCE_DELAY)();
       } else {
         this.locatorSystem.overlay.hide();
         this.locatorSystem.tooltip.hideHierarchical();
