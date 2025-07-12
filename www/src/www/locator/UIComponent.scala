@@ -8,7 +8,7 @@ trait UIComponent extends Locator {
   def render(): HtmlElement
 
   def apply(): HtmlElement = {
-    render()
+    locatorModifiers(render())
   }
 
 }
