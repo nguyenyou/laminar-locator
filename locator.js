@@ -721,19 +721,7 @@
       });
     }
 
-    /**
-     * Apply active state (for keyboard navigation)
-     */
-    applyActiveState() {
-      this.applyHoverState();
-    }
 
-    /**
-     * Remove active state (for keyboard navigation)
-     */
-    removeActiveState() {
-      this.removeHoverState();
-    }
 
     /**
      * Handle overlay click events
@@ -1330,23 +1318,7 @@
       this.state.setCurrentTargetElement(element);
     }
 
-    /**
-     * Apply active state visual feedback
-     */
-    applyActiveState() {
-      if (this.overlayManager) {
-        this.overlayManager.applyActiveState();
-      }
-    }
 
-    /**
-     * Remove active state visual feedback
-     */
-    removeActiveState() {
-      if (this.overlayManager) {
-        this.overlayManager.removeActiveState();
-      }
-    }
 
     /**
      * Navigate to parent component (with cycling)
