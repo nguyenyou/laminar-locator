@@ -16,8 +16,8 @@
   const PREFER_IDE_KEY = "locator_prefer_ide_protocol";
   const PREFER_IDE_PROTOCOL = window.localStorage.getItem(PREFER_IDE_KEY) || "idea";
   const PARENT_TOOLTIP_COUNT_KEY = "locator_parent_tooltip_count";
-  const DEFAULT_PARENT_COUNT = 3;
-  const MAX_PARENT_COUNT = 3;
+  const DEFAULT_PARENT_COUNT = 5;
+  const MAX_PARENT_COUNT = 5;
   const EDITOR_PROTOCOL = {
     "idea": "idea://open?file=",
     "vscode": "vscode://file/",
@@ -570,6 +570,43 @@
     }
   }
 
+  /**
+   * Handle Enter key press to open selected component file in keyboard navigation mode
+   */
+  function handleKeyboardFileOpen() {
+    const targetElement = LocatorState.keyboardSelectedElement || LocatorState.currentTargetElement;
+
+    if (!targetElement) {
+      // No element selected, trigger error feedback
+      triggerVisualFeedback('error', 'enter');
+      return;
+    }
+
+    // Validate required properties
+    const scalasourcepath = targetElement.__scalasourcepath;
+    const scalasourceline = targetElement.__scalasourceline;
+
+    if (!scalasourcepath) {
+      // Invalid element, trigger error feedback
+      triggerVisualFeedback('error', 'enter');
+      return;
+    }
+
+    try {
+      // Trigger visual feedback to indicate action
+      triggerScaleAnimation();
+
+      // Open file at source path (same logic as handleOverlayClick)
+      openFileAtSourcePath(scalasourcepath, scalasourceline);
+
+      // Exit locator mode after successful file opening
+      LocatorState.reset();
+    } catch (error) {
+      console.error("Error opening file from keyboard navigation:", error);
+      triggerVisualFeedback('error', 'enter');
+    }
+  }
+
   // ============================================================================
   // COMPONENT TREE NAVIGATION FUNCTIONS
   // ============================================================================
@@ -943,7 +980,7 @@
   /**
    * Trigger visual feedback animations for navigation actions
    * @param {string} action - Type of action ('navigate', 'boundary', 'error')
-   * @param {string} direction - Direction of navigation ('up', 'down', 'left', 'right')
+   * @param {string} direction - Direction of navigation ('up', 'down', 'left', 'right', 'enter')
    */
   function triggerVisualFeedback(action, direction) {
     switch (action) {
@@ -956,7 +993,7 @@
         triggerPulseAnimation();
         break;
       case 'error':
-        triggerErrorAnimation();
+        triggerErrorAnimation(direction);
         break;
     }
   }
@@ -1062,8 +1099,9 @@
 
   /**
    * Trigger error animation (subtle shake)
+   * @param {string} direction - Direction context for the error (optional)
    */
-  function triggerErrorAnimation() {
+  function triggerErrorAnimation(direction) {
     const overlay = LocatorState.overlayDiv;
     if (!overlay || overlay.style.display === 'none') return;
 
@@ -1073,11 +1111,20 @@
 
     overlay.style.transition = `transform ${shakeDuration / 4}ms ease-in-out`;
 
-    // Shake left and right
-    setTimeout(() => overlay.style.transform = `translateX(-${shakeDistance}px)`, 0);
-    setTimeout(() => overlay.style.transform = `translateX(${shakeDistance}px)`, shakeDuration / 4);
-    setTimeout(() => overlay.style.transform = `translateX(-${shakeDistance / 2}px)`, shakeDuration / 2);
-    setTimeout(() => overlay.style.transform = originalTransform, shakeDuration * 3 / 4);
+    // Shake left and right for navigation errors, or up and down for enter key errors
+    if (direction === 'enter') {
+      // Vertical shake for Enter key errors
+      setTimeout(() => overlay.style.transform = `translateY(-${shakeDistance}px)`, 0);
+      setTimeout(() => overlay.style.transform = `translateY(${shakeDistance}px)`, shakeDuration / 4);
+      setTimeout(() => overlay.style.transform = `translateY(-${shakeDistance / 2}px)`, shakeDuration / 2);
+      setTimeout(() => overlay.style.transform = originalTransform, shakeDuration * 3 / 4);
+    } else {
+      // Horizontal shake for navigation errors
+      setTimeout(() => overlay.style.transform = `translateX(-${shakeDistance}px)`, 0);
+      setTimeout(() => overlay.style.transform = `translateX(${shakeDistance}px)`, shakeDuration / 4);
+      setTimeout(() => overlay.style.transform = `translateX(-${shakeDistance / 2}px)`, shakeDuration / 2);
+      setTimeout(() => overlay.style.transform = originalTransform, shakeDuration * 3 / 4);
+    }
 
     setTimeout(() => {
       overlay.style.transition = OVERLAY_STYLES.transition;
@@ -1407,7 +1454,7 @@
       }
 
       // Add basic navigation hint
-      parts.push("Alt+↑↓←→ to navigate");
+      parts.push("Alt+↑↓←→ to navigate • Enter to open");
 
       tooltipContent = parts.join('\n');
     } else if (isKeyboardMode) {
@@ -1747,6 +1794,13 @@
           handleKeyboardNavigation('right');
           return;
       }
+    }
+
+    // Handle Enter key for opening selected component in keyboard navigation mode
+    if (event.key === "Enter" && LocatorState.altPressed && LocatorState.navigationMode === 'keyboard') {
+      event.preventDefault();
+      handleKeyboardFileOpen();
+      return;
     }
 
     if (event.key === "Alt" && !LocatorState.altPressed) {
