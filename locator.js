@@ -188,61 +188,33 @@
         --locator-throttle-delay: 50;
         --locator-debounce-delay: 100;
 
-        /* Component Tree View */
-        --tree-panel-width: 340px;
+        /* Component Tree View - Simplified Clean Style */
+        --tree-panel-width: 300px;
         --tree-panel-max-height: 70vh;
         --tree-panel-min-height: 200px;
-        --tree-panel-bg: var(--locator-white);
-        --tree-panel-border: 1px solid rgba(0, 0, 0, 0.08);
-        --tree-panel-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
-        --tree-panel-border-radius: 12px;
-        --tree-panel-padding: 0;
+        --tree-panel-bg: #ffffff;
+        --tree-panel-border: 1px solid #e1e4e8;
+        --tree-panel-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        --tree-panel-border-radius: 6px;
         --tree-panel-z-index: 10001;
-        --tree-panel-backdrop-filter: blur(8px);
 
-        --tree-header-height: 48px;
-        --tree-header-bg: linear-gradient(135deg, var(--locator-primary-bg-light), rgba(255, 255, 255, 0.9));
-        --tree-header-border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-        --tree-header-padding: 0 20px;
-        --tree-header-backdrop-filter: blur(8px);
+        /* Simple Header Styling */
+        --tree-header-height: 40px;
+        --tree-header-bg: #f6f8fa;
+        --tree-header-border-bottom: 1px solid #e1e4e8;
+        --tree-header-padding: 0 16px;
 
-        --tree-item-height: 32px;
-        --tree-item-padding: 6px 12px;
-        --tree-item-indent: 24px;
-        --tree-item-hover-bg: rgba(0, 123, 255, 0.08);
-        --tree-item-selected-bg: rgba(0, 123, 255, 0.15);
-        --tree-item-active-bg: rgba(0, 123, 255, 0.2);
-        --tree-item-border-radius: 6px;
-        --tree-item-margin: 2px 8px;
-        --tree-item-transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        /* Simple Close Button */
+        --tree-close-button-size: 24px;
+        --tree-close-button-hover-bg: rgba(0, 0, 0, 0.06);
+        --tree-close-button-border-radius: 3px;
 
-        --tree-icon-size: 18px;
-        --tree-icon-color: #6b7280;
-        --tree-icon-hover-color: var(--locator-primary-color);
-        --tree-expand-icon-size: 14px;
-        --tree-component-icon-color: var(--locator-primary-color);
-
-        --tree-text-color: #1f2937;
-        --tree-text-secondary-color: #6b7280;
-        --tree-text-font-size: 13px;
-        --tree-text-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        --tree-text-font-weight: 500;
-        --tree-text-line-height: 1.4;
-
-        --tree-close-button-size: 28px;
-        --tree-close-button-hover-bg: rgba(0, 0, 0, 0.08);
-        --tree-close-button-active-bg: rgba(0, 0, 0, 0.12);
-        --tree-close-button-border-radius: 6px;
-
+        /* Simple Scrollbar */
         --tree-scrollbar-width: 6px;
-        --tree-scrollbar-track-bg: transparent;
-        --tree-scrollbar-thumb-bg: rgba(0, 0, 0, 0.2);
-        --tree-scrollbar-thumb-hover-bg: rgba(0, 0, 0, 0.3);
+        --tree-scrollbar-track-bg: #f6f8fa;
+        --tree-scrollbar-thumb-bg: #d1d5da;
+        --tree-scrollbar-thumb-hover-bg: #c6cbd1;
         --tree-scrollbar-border-radius: 3px;
-
-        --tree-focus-ring: 0 0 0 2px rgba(0, 123, 255, 0.3);
-        --tree-animation-duration: 0.2s;
-        --tree-animation-easing: cubic-bezier(0.4, 0, 0.2, 1);
       }
     `;
 
@@ -2191,6 +2163,10 @@
         this.createPanel();
         this.renderTree();
         this.positionPanel();
+
+        // Add React DevTools-style entrance animation
+        this.animateEntrance();
+
         this.isVisible = true;
 
         // Start monitoring for changes
@@ -2199,10 +2175,12 @@
         // Handle edge cases
         this.handleEdgeCases();
 
-        // Focus the tree for keyboard navigation
-        if (this.treeContainer) {
-          this.treeContainer.focus();
-        }
+        // Focus the tree for keyboard navigation with slight delay
+        setTimeout(() => {
+          if (this.treeContainer) {
+            this.treeContainer.focus();
+          }
+        }, 200);
       } catch (error) {
         console.error('Error showing component tree view:', error);
         this.hide();
@@ -2233,7 +2211,7 @@
     }
 
     /**
-     * Hide the component tree view
+     * Hide the component tree view with React DevTools-style exit animation
      */
     hide() {
       if (!this.isVisible) return;
@@ -2247,17 +2225,20 @@
         this.animationFrameId = null;
       }
 
-      if (this.panelElement) {
-        this.panelElement.remove();
-        this.panelElement = null;
-        this.treeContainer = null;
-      }
+      // Animate exit
+      this.animateExit(() => {
+        if (this.panelElement) {
+          this.panelElement.remove();
+          this.panelElement = null;
+          this.treeContainer = null;
+        }
 
-      this.isVisible = false;
-      this.selectedNodeId = null;
+        this.isVisible = false;
+        this.selectedNodeId = null;
 
-      // Clear caches
-      this.renderCache.clear();
+        // Clear caches
+        this.renderCache.clear();
+      });
     }
 
     /**
@@ -2367,40 +2348,17 @@
     }
 
     /**
-     * Get display name for a component
+     * Get clean component name derived from filename
      * @param {Object} node - Tree node
-     * @returns {string} Display name
+     * @returns {string} Clean component name
      */
     getComponentDisplayName(node) {
-      // Extract component name from filename
+      // Extract clean component name from filename only
       const filename = node.filename || 'Unknown';
-      const baseName = filename.replace(/\.(scala|js|ts)$/, '');
-
-      // Try to get a more descriptive name from the element
-      const element = node.element;
-      const tagName = element.tagName.toLowerCase();
-      const className = element.className;
-      const id = element.id;
-
-      let displayName = baseName;
-
-      // Add additional context if available
-      if (id) {
-        displayName += `#${id}`;
-      } else if (className && typeof className === 'string') {
-        const classes = className.split(' ').filter(c => c.trim()).slice(0, 2);
-        if (classes.length > 0) {
-          displayName += `.${classes.join('.')}`;
-        }
-      }
-
-      // Add tag name for HTML elements
-      if (tagName !== 'div' && tagName !== 'span') {
-        displayName += ` <${tagName}>`;
-      }
-
-      return displayName;
+      return filename.replace(/\.(scala|js|ts)$/, '');
     }
+
+
 
     /**
      * Flatten tree structure for linear navigation
@@ -2515,25 +2473,29 @@
 
       closeButton.addEventListener('click', this.close);
 
-      // Create tree container
+      // Create React DevTools-style tree container
       this.treeContainer = document.createElement('div');
       this.treeContainer.className = 'locator-tree-container';
       this.treeContainer.tabIndex = 0; // Make focusable for keyboard navigation
       this.treeContainer.style.cssText = `
         flex: 1;
         overflow-y: auto;
-        padding: 12px 0;
+        overflow-x: hidden;
+        padding: 8px 0;
         outline: none;
         scroll-behavior: smooth;
+        background: var(--tree-panel-bg);
+        position: relative;
       `;
 
-      // Add focus styling
+      // Add React DevTools-style focus styling
       this.treeContainer.addEventListener('focus', () => {
-        this.treeContainer.style.boxShadow = 'inset var(--tree-focus-ring)';
+        this.treeContainer.style.outline = '2px solid var(--tree-component-name-color)';
+        this.treeContainer.style.outlineOffset = '-2px';
       });
 
       this.treeContainer.addEventListener('blur', () => {
-        this.treeContainer.style.boxShadow = 'none';
+        this.treeContainer.style.outline = 'none';
       });
 
       // Add custom scrollbar styling
@@ -2626,29 +2588,29 @@
      * @param {Element} container - Container element
      */
     renderTreeNode(node, container) {
-      // Create node element
+      // Create simple node element
       const nodeElement = document.createElement('div');
       nodeElement.className = 'locator-tree-node';
       nodeElement.dataset.nodeId = node.id;
       nodeElement.style.cssText = `
         display: flex;
         align-items: center;
-        min-height: var(--tree-item-height);
-        padding: var(--tree-item-padding);
-        margin: var(--tree-item-margin);
-        margin-left: calc(var(--tree-item-margin) + ${node.level * parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tree-item-indent') || '24')}px);
-        border-radius: var(--tree-item-border-radius);
+        min-height: 24px;
+        padding: 2px 8px;
+        margin: 0;
+        padding-left: calc(${node.level * 16}px + 8px);
         cursor: pointer;
-        transition: var(--tree-item-transition);
         user-select: none;
-        position: relative;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size: 13px;
+        line-height: 1.4;
+        color: #24292e;
       `;
 
-      // Add hover effects
+      // Add simple hover effects
       nodeElement.addEventListener('mouseenter', (e) => {
         if (this.selectedNodeId !== node.id) {
-          nodeElement.style.background = 'var(--tree-item-hover-bg)';
-          nodeElement.style.transform = 'translateX(2px)';
+          nodeElement.style.background = '#f1f8ff';
         }
         this.handleTreeItemHover(e);
       });
@@ -2656,19 +2618,7 @@
       nodeElement.addEventListener('mouseleave', () => {
         if (this.selectedNodeId !== node.id) {
           nodeElement.style.background = 'transparent';
-          nodeElement.style.transform = 'translateX(0)';
         }
-      });
-
-      // Add active state
-      nodeElement.addEventListener('mousedown', () => {
-        nodeElement.style.background = 'var(--tree-item-active-bg)';
-      });
-
-      nodeElement.addEventListener('mouseup', () => {
-        const bg = this.selectedNodeId === node.id ?
-          'var(--tree-item-selected-bg)' : 'var(--tree-item-hover-bg)';
-        nodeElement.style.background = bg;
       });
 
       // Add click handler
@@ -2683,110 +2633,52 @@
         this.showContextMenu(node, e);
       });
 
-      // Create expand/collapse icon
+      // Create simple expand/collapse triangle (only for nodes with children)
       const expandIcon = document.createElement('span');
       expandIcon.className = 'locator-tree-expand-icon';
       expandIcon.style.cssText = `
-        width: var(--tree-expand-icon-size);
-        height: var(--tree-expand-icon-size);
-        margin-right: 6px;
+        width: 12px;
+        height: 12px;
+        margin-right: 4px;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--tree-icon-color);
-        font-size: 10px;
-        transition: var(--tree-item-transition);
+        color: #586069;
+        font-size: 8px;
         flex-shrink: 0;
-        border-radius: 2px;
+        font-family: monospace;
       `;
 
       if (node.children.length > 0) {
         expandIcon.innerHTML = '▶';
         expandIcon.style.cursor = 'pointer';
         expandIcon.style.transform = node.expanded ? 'rotate(90deg)' : 'rotate(0deg)';
-
-        expandIcon.addEventListener('mouseenter', () => {
-          expandIcon.style.background = 'var(--tree-item-hover-bg)';
-          expandIcon.style.color = 'var(--tree-icon-hover-color)';
-        });
-
-        expandIcon.addEventListener('mouseleave', () => {
-          expandIcon.style.background = 'transparent';
-          expandIcon.style.color = 'var(--tree-icon-color)';
-        });
+        expandIcon.style.transition = 'transform 0.1s ease';
 
         expandIcon.addEventListener('click', (e) => {
           e.stopPropagation();
           this.toggleNodeExpansion(node);
         });
       } else {
-        expandIcon.innerHTML = '•';
-        expandIcon.style.opacity = '0.4';
-        expandIcon.style.fontSize = '8px';
+        // Empty space for leaf nodes to maintain alignment
+        expandIcon.innerHTML = '';
+        expandIcon.style.cursor = 'default';
       }
 
-      // Create component icon
-      const componentIcon = document.createElement('span');
-      componentIcon.className = 'locator-tree-component-icon';
-      componentIcon.innerHTML = '⚡'; // Component icon
-      componentIcon.style.cssText = `
-        width: var(--tree-icon-size);
-        height: var(--tree-icon-size);
-        margin-right: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--tree-component-icon-color);
-        font-size: 12px;
-        flex-shrink: 0;
-        opacity: 0.8;
-      `;
-
-      // Create text content
-      const textContent = document.createElement('div');
-      textContent.className = 'locator-tree-text';
-      textContent.style.cssText = `
-        flex: 1;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-        line-height: var(--tree-text-line-height);
-      `;
-
-      // Component name
-      const nameElement = document.createElement('div');
+      // Create simple text content - just the component name
+      const componentName = this.getComponentDisplayName(node);
+      const nameElement = document.createElement('span');
       nameElement.className = 'locator-tree-name';
-      nameElement.textContent = this.getComponentDisplayName(node);
       nameElement.style.cssText = `
-        color: var(--tree-text-color);
-        font-weight: var(--tree-text-font-weight);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        font-size: var(--tree-text-font-size);
+        color: #24292e;
+        font-weight: 400;
+        flex: 1;
       `;
+      nameElement.textContent = componentName;
 
-      // Component metadata
-      const metaElement = document.createElement('div');
-      metaElement.className = 'locator-tree-meta';
-      metaElement.textContent = `${node.filename}:${node.line}`;
-      metaElement.style.cssText = `
-        color: var(--tree-text-secondary-color);
-        font-size: 11px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        margin-top: 1px;
-        opacity: 0.8;
-      `;
-
-      // Assemble node
-      textContent.appendChild(nameElement);
-      textContent.appendChild(metaElement);
+      // Assemble node - just expand icon and component name
       nodeElement.appendChild(expandIcon);
-      nodeElement.appendChild(componentIcon);
-      nodeElement.appendChild(textContent);
+      nodeElement.appendChild(nameElement);
 
       // Add to container
       container.appendChild(nodeElement);
@@ -2798,6 +2690,8 @@
         });
       }
     }
+
+
 
     /**
      * Toggle expansion state of a tree node
@@ -2918,66 +2812,77 @@
         height: window.innerHeight
       };
 
-      // Responsive design adjustments
+      // React DevTools-style responsive design adjustments
       const isMobile = viewport.width < 768;
-      const isTablet = viewport.width >= 768 && viewport.width < 1024;
+      const isTablet = viewport.width >= 768 && viewport.width < 1200;
 
       let panelWidth, margin;
 
       if (isMobile) {
-        // Mobile: full width with small margins
-        panelWidth = viewport.width - 32;
-        margin = 16;
+        // Mobile: React DevTools mobile layout
+        panelWidth = Math.min(viewport.width - 24, 360);
+        margin = 12;
         panel.style.width = `${panelWidth}px`;
-        panel.style.maxHeight = '60vh';
+        panel.style.maxHeight = '65vh';
+        panel.style.minHeight = '200px';
       } else if (isTablet) {
-        // Tablet: slightly wider panel
-        panelWidth = Math.min(380, viewport.width - 64);
-        margin = 32;
-        panel.style.width = `${panelWidth}px`;
-        panel.style.maxHeight = '70vh';
-      } else {
-        // Desktop: use CSS variable width
-        const panelRect = panel.getBoundingClientRect();
-        panelWidth = panelRect.width || 340;
+        // Tablet: React DevTools tablet layout
+        panelWidth = Math.min(400, viewport.width - 48);
         margin = 24;
+        panel.style.width = `${panelWidth}px`;
+        panel.style.maxHeight = '75vh';
+        panel.style.minHeight = '240px';
+      } else {
+        // Desktop: React DevTools desktop layout
+        const panelRect = panel.getBoundingClientRect();
+        panelWidth = panelRect.width || parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tree-panel-width')) || 380;
+        margin = 32;
+        panel.style.maxHeight = 'var(--tree-panel-max-height)';
+        panel.style.minHeight = 'var(--tree-panel-min-height)';
       }
 
-      const panelHeight = panel.getBoundingClientRect().height || Math.min(600, viewport.height * 0.7);
+      const panelHeight = panel.getBoundingClientRect().height || Math.min(600, viewport.height * 0.75);
 
-      // Calculate optimal position
+      // Calculate React DevTools-style optimal position
       let left, top;
 
       if (isMobile) {
-        // Mobile: center horizontally, position near top
-        left = (viewport.width - panelWidth) / 2;
-        top = margin * 2;
+        // Mobile: center horizontally with top positioning
+        left = Math.max(margin, (viewport.width - panelWidth) / 2);
+        top = margin + 20; // Slightly lower on mobile for better thumb reach
       } else {
-        // Desktop/Tablet: prefer top-right corner
+        // Desktop/Tablet: React DevTools-style top-right positioning
         left = viewport.width - panelWidth - margin;
-        top = margin;
+        top = margin + 8; // Slight offset from very top
 
-        // Ensure panel fits within viewport
+        // Smart positioning: avoid overlapping with common UI elements
         if (left < margin) {
+          // If doesn't fit on right, try left side
           left = margin;
+        }
+
+        // Check for potential overlap with browser UI
+        if (top < 60) {
+          top = 60; // Account for browser toolbar
         }
       }
 
-      if (top + panelHeight > viewport.height - margin) {
-        top = viewport.height - panelHeight - margin;
+      // Ensure panel fits vertically with React DevTools-style constraints
+      const availableHeight = viewport.height - top - margin;
+      if (panelHeight > availableHeight) {
+        // Adjust top position or height to fit
+        if (availableHeight < 300) {
+          // If very little space, reposition higher
+          top = Math.max(margin, viewport.height - 300 - margin);
+          panel.style.maxHeight = `${Math.min(300, viewport.height - (margin * 2))}px`;
+        } else {
+          panel.style.maxHeight = `${availableHeight}px`;
+        }
       }
 
-      // Ensure minimum visibility
-      if (top < margin) {
-        top = margin;
-        // If still doesn't fit, reduce height
-        const maxHeight = viewport.height - (margin * 2);
-        panel.style.maxHeight = `${maxHeight}px`;
-      }
-
-      // Apply position
-      panel.style.left = `${left}px`;
-      panel.style.top = `${top}px`;
+      // Apply position with React DevTools-style precision
+      panel.style.left = `${Math.round(left)}px`;
+      panel.style.top = `${Math.round(top)}px`;
 
       // Add entrance animation with enhanced easing
       panel.style.opacity = '0';
@@ -2992,6 +2897,54 @@
         panel.style.opacity = '1';
         panel.style.transform = 'translateY(0) scale(1)';
       });
+    }
+
+    /**
+     * Animate React DevTools-style entrance
+     */
+    animateEntrance() {
+      if (!this.panelElement) return;
+
+      const panel = this.panelElement;
+
+      // Set initial state for entrance animation
+      panel.style.opacity = '0';
+      panel.style.transform = 'translateY(-8px) scale(0.98)';
+      panel.style.transition = `
+        opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)
+      `;
+
+      // Trigger entrance animation
+      requestAnimationFrame(() => {
+        panel.style.opacity = '1';
+        panel.style.transform = 'translateY(0) scale(1)';
+      });
+    }
+
+    /**
+     * Animate React DevTools-style exit
+     * @param {Function} callback - Callback to execute after animation
+     */
+    animateExit(callback) {
+      if (!this.panelElement) {
+        callback();
+        return;
+      }
+
+      const panel = this.panelElement;
+
+      // Set exit animation
+      panel.style.transition = `
+        opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)
+      `;
+
+      panel.style.opacity = '0';
+      panel.style.transform = 'translateY(-4px) scale(0.99)';
+
+      // Execute callback after animation
+      setTimeout(callback, 150);
     }
 
     /**
@@ -3169,13 +3122,15 @@
         const prevElement = this.treeContainer.querySelector(`[data-node-id="${previousId}"]`);
         if (prevElement) {
           prevElement.style.background = 'transparent';
+          prevElement.style.color = '#24292e';
         }
       }
 
       // Add current selection
       const currentElement = this.treeContainer.querySelector(`[data-node-id="${currentId}"]`);
       if (currentElement) {
-        currentElement.style.background = 'var(--tree-item-selected-bg)';
+        currentElement.style.background = '#0366d6';
+        currentElement.style.color = '#ffffff';
       }
     }
 
