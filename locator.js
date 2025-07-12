@@ -826,6 +826,17 @@
     }
 
     /**
+     * Get clean component name derived from filename
+     * @param {string} filename - Component filename
+     * @returns {string} Clean component name
+     */
+    getComponentDisplayName(filename) {
+      if (!filename) return 'Unknown';
+      // Extract clean component name from filename only
+      return filename.replace(/\.(scala|js|ts)$/, '');
+    }
+
+    /**
      * Create main tooltip element
      * @returns {HTMLDivElement} Tooltip element
      */
@@ -897,23 +908,19 @@
       }
 
       const scalafilename = PropertyAccessor.getFilename(targetElement);
-      const scalasourceline = PropertyAccessor.getSourceLine(targetElement);
 
-      if (!scalafilename || !scalasourceline) {
+      if (!scalafilename) {
         this.hideMain();
         return;
       }
 
       this.createMainElement();
 
-      // Build tooltip content
-      let content = `${scalafilename}:${scalasourceline}`;
-      if (this.state.keyboardNavigationActive) {
-        content += " • Alt+↑↓←→ to navigate • Enter to open";
-      }
+      // Build tooltip content using clean component name only
+      const componentName = this.getComponentDisplayName(scalafilename);
 
       // Update content and styles
-      this.mainTooltip.textContent = content;
+      this.mainTooltip.textContent = componentName;
       const styles = this.styleManager.getTooltipStyles();
       Object.assign(this.mainTooltip.style, styles);
 
@@ -1125,9 +1132,10 @@
       const items = parents.map((parent, index) => {
         const indent = "  ".repeat(parent.level - 1);
         const connector = index === 0 ? "└─ " : "├─ ";
+        const componentName = this.getComponentDisplayName(parent.filename);
         return `<div style="margin: ${this.styleManager.getCSSProperty('parent-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
           <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};">${indent}${connector}</span>
-          <span style="color: ${this.styleManager.getCSSProperty('white')};">${parent.filename}:${parent.line}</span>
+          <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
         </div>`;
       });
 
