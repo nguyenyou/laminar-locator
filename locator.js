@@ -62,6 +62,7 @@
    */
   const LocatorState = {
     altPressed: false,
+    shiftPressed: false,
     overlayDiv: null,
     tooltipDiv: null,
     parentTooltipDiv: null,
@@ -70,16 +71,19 @@
     parentTooltipVisible: false,
     parentTooltipTimeout: null,
     lastTargetElement: null, // Track last target to detect component changes
+    parentTooltipToggled: false, // Track if parent tooltip was manually toggled
 
     /**
      * Reset all state to initial values
      */
     reset() {
       this.altPressed = false;
+      this.shiftPressed = false;
       this.currentTargetElement = null;
       this.lastTargetElement = null;
       this.currentMousePosition = { clientX: 0, clientY: 0 };
       this.parentTooltipVisible = false;
+      this.parentTooltipToggled = false;
       if (this.parentTooltipTimeout) {
         clearTimeout(this.parentTooltipTimeout);
         this.parentTooltipTimeout = null;
@@ -103,6 +107,13 @@
     setAltPressed(pressed) {
       this.altPressed = pressed;
       document.body.style.cursor = pressed ? "crosshair" : "";
+    },
+
+    /**
+     * Set Shift key pressed state
+     */
+    setShiftPressed(pressed) {
+      this.shiftPressed = pressed;
     },
 
     /**
@@ -621,7 +632,7 @@
   }
 
   /**
-   * Toggle parent tooltip display when 'X' key is pressed while Alt is held
+   * Toggle parent tooltip display when Shift key is pressed while Alt is held
    */
   function toggleParentTooltip() {
     // Only toggle if Alt is pressed and a tooltip is currently visible
@@ -632,14 +643,57 @@
     if (parentCount === 0) return;
 
     if (LocatorState.parentTooltipVisible) {
-      // Hide parent tooltip
+      // Hide parent tooltip and mark as manually toggled off
       LocatorState.hideParentTooltip();
+      LocatorState.parentTooltipToggled = false;
     } else {
-      // Show parent tooltip
+      // Show parent tooltip and mark as manually toggled on
       const parents = findParentComponents(LocatorState.currentTargetElement, parentCount);
       if (parents.length > 0) {
         showParentTooltip(parents);
+        LocatorState.parentTooltipToggled = true;
       }
+    }
+  }
+
+  /**
+   * Check if parent tooltip should be automatically shown when both Alt and Shift are held
+   */
+  function checkAutoShowParentTooltip() {
+    // Only auto-show if both Alt and Shift are pressed, tooltip is visible
+    if (!LocatorState.altPressed || !LocatorState.shiftPressed) return;
+    if (!LocatorState.currentTargetElement) return;
+    if (!LocatorState.tooltipDiv || LocatorState.tooltipDiv.style.display === "none") return;
+
+    const parentCount = getParentTooltipCount();
+    if (parentCount === 0) return;
+
+    const parents = findParentComponents(LocatorState.currentTargetElement, parentCount);
+    if (parents.length > 0) {
+      if (LocatorState.parentTooltipVisible && !LocatorState.parentTooltipToggled) {
+        // Parent tooltip is already visible and was auto-shown, update it for current component
+        updateParentTooltipForNewComponent();
+      } else if (!LocatorState.parentTooltipVisible) {
+        // Show parent tooltip for the first time
+        showParentTooltip(parents);
+        // Don't mark as manually toggled since this is automatic
+      }
+    } else if (LocatorState.parentTooltipVisible && !LocatorState.parentTooltipToggled) {
+      // No parents found but tooltip is visible and was auto-shown, hide it
+      LocatorState.hideParentTooltip();
+    }
+  }
+
+  /**
+   * Hide parent tooltip when either Alt or Shift is released (unless manually toggled)
+   */
+  function checkAutoHideParentTooltip() {
+    // If parent tooltip was manually toggled on, don't auto-hide
+    if (LocatorState.parentTooltipToggled) return;
+
+    // Hide if either key is released and parent tooltip is visible
+    if ((!LocatorState.altPressed || !LocatorState.shiftPressed) && LocatorState.parentTooltipVisible) {
+      LocatorState.hideParentTooltip();
     }
   }
 
@@ -724,14 +778,71 @@
   // ============================================================================
 
   /**
-   * Check if the target element has changed and hide parent tooltip if so
+   * Check if the target element has changed and update parent tooltip accordingly
    * @param {Element} newTargetElement - New target element
    */
   function checkForComponentChange(newTargetElement) {
     if (LocatorState.lastTargetElement !== newTargetElement) {
-      // Component changed, hide parent tooltip
-      LocatorState.hideParentTooltip();
+      const wasParentTooltipVisible = LocatorState.parentTooltipVisible;
+      const wasManuallyToggled = LocatorState.parentTooltipToggled;
+
+      // Component changed, reset toggle state for manual toggles
+      if (wasManuallyToggled) {
+        LocatorState.hideParentTooltip();
+        LocatorState.parentTooltipToggled = false;
+      }
+
       LocatorState.lastTargetElement = newTargetElement;
+
+      // If parent tooltip was visible (either auto or manual) and we have a new component,
+      // update it for the new component
+      if (wasParentTooltipVisible && newTargetElement && !wasManuallyToggled) {
+        // For auto-shown tooltips, update the position for the new component
+        // Use a small timeout to ensure the main tooltip is rendered first
+        setTimeout(() => {
+          updateParentTooltipForNewComponent();
+        }, 20);
+      } else if (newTargetElement && !wasParentTooltipVisible) {
+        // Check if we should auto-show parent tooltip for the new component
+        setTimeout(() => {
+          checkAutoShowParentTooltip();
+        }, 20);
+      }
+    }
+  }
+
+  /**
+   * Update parent tooltip content and position for the current component
+   */
+  function updateParentTooltipForNewComponent() {
+    if (!LocatorState.currentTargetElement || !LocatorState.parentTooltipDiv) return;
+    if (!LocatorState.tooltipDiv || LocatorState.tooltipDiv.style.display === "none") return;
+
+    const parentCount = getParentTooltipCount();
+    if (parentCount === 0) return;
+
+    const parents = findParentComponents(LocatorState.currentTargetElement, parentCount);
+    if (parents.length > 0) {
+      // Update content
+      const content = createParentTooltipContent(parents);
+      LocatorState.parentTooltipDiv.innerHTML = content;
+
+      // Recalculate position relative to the new main tooltip
+      const tooltipRect = LocatorState.parentTooltipDiv.getBoundingClientRect();
+      const mainTooltipRect = LocatorState.tooltipDiv.getBoundingClientRect();
+      const position = calculateParentTooltipPosition(mainTooltipRect, tooltipRect.width, tooltipRect.height);
+
+      // Apply new position
+      Object.assign(LocatorState.parentTooltipDiv.style, {
+        left: `${position.left}px`,
+        top: `${position.top}px`,
+        display: "block"
+      });
+
+      LocatorState.parentTooltipVisible = true;
+    } else {
+      // No parents found, hide the tooltip
+      LocatorState.hideParentTooltip();
     }
   }
 
@@ -763,11 +874,10 @@
   }
 
   /**
-   * Handle keydown events for Alt key detection and X key toggle
+   * Handle keydown events for Alt and Shift key detection
    * @param {KeyboardEvent} event - Keyboard event
    */
   function handleKeyDown(event) {
-    console.log("Key down", event.key);
     if (event.key === "Alt" && !LocatorState.altPressed) {
       // Alt key pressed for the first time - immediately trigger overlay at current mouse position
       LocatorState.setAltPressed(true);
@@ -780,18 +890,35 @@
 
       // Immediately render overlay at current mouse position
       renderLocatorOverlay(syntheticMouseEvent);
-    } else if (event.key === "Shift") {
-      console.log("X key pressed");
-      // X key pressed - toggle parent tooltip if Alt is held and tooltip is visible
+
+      // Check if we should auto-show parent tooltip (if Shift is already held)
+      setTimeout(() => {
+        checkAutoShowParentTooltip();
+      }, 25);
+    } else if (event.key === "Shift" && !LocatorState.shiftPressed) {
+      // Shift key pressed
+      LocatorState.setShiftPressed(true);
+
       if (LocatorState.altPressed) {
-        event.preventDefault(); // Prevent any default behavior
-        toggleParentTooltip();
+        // Both Alt and Shift are now held - toggle parent tooltip or auto-show
+        if (LocatorState.currentTargetElement && LocatorState.tooltipDiv &&
+            LocatorState.tooltipDiv.style.display !== "none") {
+          // If parent tooltip is already visible, this acts as a toggle off
+          if (LocatorState.parentTooltipVisible) {
+            toggleParentTooltip();
+          } else {
+            // Auto-show parent tooltip
+            setTimeout(() => {
+              checkAutoShowParentTooltip();
+            }, 25);
+          }
+        }
       }
     }
   }
 
   /**
-   * Handle keyup events for Alt key release
+   * Handle keyup events for Alt and Shift key release
    * @param {KeyboardEvent} event - Keyboard event
    */
   function handleKeyUp(event) {
@@ -799,6 +926,11 @@
       LocatorState.setAltPressed(false);
       LocatorState.hideOverlay();
       LocatorState.hideParentTooltip();
+      LocatorState.parentTooltipToggled = false; // Reset toggle state
+    } else if (event.key === "Shift") {
+      LocatorState.setShiftPressed(false);
+      // Check if we should auto-hide parent tooltip
+      checkAutoHideParentTooltip();
     }
   }
 
@@ -819,6 +951,10 @@
 
     if (LocatorState.altPressed) {
       renderLocatorOverlay(event);
+      // Check if we should auto-show parent tooltip after the main tooltip is positioned
+      setTimeout(() => {
+        checkAutoShowParentTooltip();
+      }, 25);
     } else {
       LocatorState.hideOverlay();
       LocatorState.hideParentTooltip();
