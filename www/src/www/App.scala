@@ -7,17 +7,10 @@ import www.locator.Locator.withLocator
 import com.raquo.laminar.api.L.*
 
 case class App() extends UIComponent {
-  def renderLabel(): HtmlElement = {
-    div(
-      "hello"
-    ).withLocator
-  }
-
   def render() = {
     div(
       width.px(600),
       height.px(400),
-      renderLabel(),
       border("1px solid black"),
       display.flex,
       flexDirection.column,
