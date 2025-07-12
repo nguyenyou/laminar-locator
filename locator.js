@@ -260,6 +260,7 @@
       this.parentTooltipVisible = false;
       this.parentTooltipTimeout = null;
       this.parentTooltipToggled = false;
+      this.hierarchicalTooltipVisible = false;
 
       // Keyboard navigation state
       this.keyboardNavigationActive = false;
@@ -305,6 +306,7 @@
       this.currentMousePosition = { clientX: 0, clientY: 0 };
       this.parentTooltipVisible = false;
       this.parentTooltipToggled = false;
+      this.hierarchicalTooltipVisible = false;
       this.keyboardNavigationActive = false;
       this.keyboardSelectedElement = null;
 
@@ -408,6 +410,18 @@
 
       if (wasVisible !== visible) {
         this.notify('parentTooltipVisibilityChanged', { visible });
+      }
+    }
+
+    /**
+     * Set hierarchical tooltip visibility
+     */
+    setHierarchicalTooltipVisible(visible) {
+      const wasVisible = this.hierarchicalTooltipVisible;
+      this.hierarchicalTooltipVisible = visible;
+
+      if (wasVisible !== visible) {
+        this.notify('hierarchicalTooltipVisibilityChanged', { visible });
       }
     }
   }
@@ -774,8 +788,10 @@
       this.styleManager = new StyleManager('tooltip');
       this.mainTooltip = null;
       this.parentTooltip = null;
+      this.hierarchicalTooltip = null;
       this.isMainVisible = false;
       this.isParentVisible = false;
+      this.isHierarchicalVisible = false;
 
       // Subscribe to state changes
       this.unsubscribe = this.state.subscribe((type, data) => {
@@ -793,6 +809,7 @@
         case 'reset':
           this.hideMain();
           this.hideParent();
+          this.hideHierarchical();
           break;
         case 'targetElementChanged':
           if (data.element) {
@@ -800,6 +817,7 @@
           } else {
             this.hideMain();
             this.hideParent();
+            this.hideHierarchical();
           }
           break;
 
@@ -808,6 +826,14 @@
             this.showParentForCurrentElement();
           } else {
             this.hideParent();
+          }
+          break;
+
+        case 'hierarchicalTooltipVisibilityChanged':
+          if (data.visible) {
+            this.showHierarchicalForCurrentElement();
+          } else {
+            this.hideHierarchical();
           }
           break;
       }
@@ -1112,6 +1138,359 @@
     }
 
     /**
+     * Hide hierarchical tooltip
+     */
+    hideHierarchical() {
+      if (this.hierarchicalTooltip) {
+        this.hierarchicalTooltip.style.display = "none";
+      }
+      this.isHierarchicalVisible = false;
+    }
+
+    /**
+     * Create hierarchical tooltip element
+     */
+    createHierarchicalElement() {
+      if (this.hierarchicalTooltip) return;
+
+      this.hierarchicalTooltip = document.createElement("div");
+      this.hierarchicalTooltip.className = "locator-hierarchical-tooltip";
+      this.hierarchicalTooltip.id = "locator-hierarchical-tooltip";
+
+      // Apply consistent styling with parent tooltip
+      Object.assign(this.hierarchicalTooltip.style, {
+        position: "fixed",
+        pointerEvents: "none",
+        backgroundColor: this.styleManager.getCSSProperty('black-overlay'),
+        color: this.styleManager.getCSSProperty('white'),
+        padding: this.styleManager.getCSSProperty('tooltip-padding-large'),
+        borderRadius: this.styleManager.getCSSProperty('border-radius'),
+        fontSize: this.styleManager.getCSSProperty('font-size'),
+        fontFamily: this.styleManager.getCSSProperty('font-family'),
+        border: `${this.styleManager.getCSSProperty('border-width-thin')} solid ${this.styleManager.getCSSProperty('white-border')}`,
+        boxShadow: this.styleManager.getCSSProperty('shadow-parent-tooltip'),
+        whiteSpace: "normal", // Allow wrapping for hierarchical content
+        zIndex: parseInt(this.styleManager.getCSSProperty('z-index')) + 3, // Higher than parent tooltip
+        display: "none",
+        opacity: "0",
+        transition: `all ${this.styleManager.getCSSProperty('transition-slow')} ${this.styleManager.getCSSProperty('easing-smooth')}`,
+        backdropFilter: this.styleManager.getCSSProperty('backdrop-blur'),
+        lineHeight: this.styleManager.getCSSProperty('line-height'),
+        willChange: "transform, opacity",
+        boxSizing: "border-box",
+        maxWidth: "400px", // Larger max width for hierarchical content
+        wordWrap: "break-word"
+      });
+
+      document.body.appendChild(this.hierarchicalTooltip);
+    }
+
+    /**
+     * Show hierarchical tooltip for current element
+     */
+    showHierarchicalForCurrentElement() {
+      if (!this.state.currentTargetElement || !this.isMainVisible) {
+        return;
+      }
+
+      // Get hierarchical information
+      const hierarchicalInfo = this.getHierarchicalInfo(this.state.currentTargetElement);
+      if (!hierarchicalInfo.hasContent) return;
+
+      this.createHierarchicalElement();
+
+      // Create content
+      const content = this.createHierarchicalTooltipContent(hierarchicalInfo);
+      this.hierarchicalTooltip.innerHTML = content;
+
+      // Position relative to main tooltip
+      this.positionHierarchicalTooltip();
+
+      // Show
+      this.hierarchicalTooltip.style.display = "block";
+      this.hierarchicalTooltip.style.opacity = "1";
+      this.isHierarchicalVisible = true;
+    }
+
+    /**
+     * Get hierarchical information for an element
+     * @param {Element} element - Target element
+     * @returns {Object} Hierarchical information
+     */
+    getHierarchicalInfo(element) {
+      const maxCount = 3; // Consistent with existing parent tooltip limit
+
+      // Get parents (existing functionality)
+      const parents = findParentComponents(element, maxCount);
+
+      // Get children - need to access keyboard navigator for this
+      const children = this.getChildComponents(element, maxCount);
+
+      // Get siblings - need to access keyboard navigator for this
+      const siblings = this.getSiblingComponents(element, maxCount);
+
+      return {
+        parents,
+        children,
+        siblings,
+        hasContent: parents.length > 0 || children.length > 0 || siblings.length > 0
+      };
+    }
+
+    /**
+     * Get child components for an element
+     * @param {Element} element - Target element
+     * @param {number} maxCount - Maximum number of children to return
+     * @returns {Array} Child component information
+     */
+    getChildComponents(element, maxCount) {
+      // We need to access the keyboard navigator to use findChildComponents
+      // For now, we'll implement a simplified version here
+      const children = [];
+      const walker = document.createTreeWalker(
+        element,
+        NodeFilter.SHOW_ELEMENT,
+        {
+          acceptNode: function(node) {
+            if (node === element) {
+              return NodeFilter.FILTER_SKIP;
+            }
+
+            if (PropertyAccessor.hasSourcePath(node)) {
+              return NodeFilter.FILTER_ACCEPT;
+            }
+
+            return NodeFilter.FILTER_SKIP;
+          }
+        }
+      );
+
+      let node;
+      while ((node = walker.nextNode()) && children.length < maxCount) {
+        // Only include direct children
+        let ancestor = node.parentElement;
+        let isDirectChild = true;
+
+        while (ancestor && ancestor !== element) {
+          if (PropertyAccessor.hasSourcePath(ancestor)) {
+            isDirectChild = false;
+            break;
+          }
+          ancestor = ancestor.parentElement;
+        }
+
+        if (isDirectChild) {
+          const filename = PropertyAccessor.getFilename(node);
+          const line = PropertyAccessor.getSourceLine(node);
+
+          if (filename && line) {
+            children.push({
+              element: node,
+              filename: filename,
+              line: line
+            });
+          }
+        }
+      }
+
+      return children;
+    }
+
+    /**
+     * Get sibling components for an element
+     * @param {Element} element - Target element
+     * @param {number} maxCount - Maximum number of siblings to return
+     * @returns {Array} Sibling component information
+     */
+    getSiblingComponents(element, maxCount) {
+      // Find parent component
+      let parent = element.parentElement;
+      while (parent && parent !== document.body) {
+        if (PropertyAccessor.hasSourcePath(parent)) {
+          break;
+        }
+        parent = parent.parentElement;
+      }
+
+      // If no parent component found, get top-level components
+      let siblings = [];
+      if (!parent || parent === document.body) {
+        // Get all top-level components
+        const walker = document.createTreeWalker(
+          document.body,
+          NodeFilter.SHOW_ELEMENT,
+          {
+            acceptNode: function(node) {
+              if (PropertyAccessor.hasSourcePath(node)) {
+                // Check if has parent with source path
+                let nodeParent = node.parentElement;
+                while (nodeParent && nodeParent !== document.body) {
+                  if (PropertyAccessor.hasSourcePath(nodeParent)) {
+                    return NodeFilter.FILTER_REJECT;
+                  }
+                  nodeParent = nodeParent.parentElement;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+              }
+              return NodeFilter.FILTER_SKIP;
+            }
+          }
+        );
+
+        let node;
+        while (node = walker.nextNode()) {
+          if (node !== element) {
+            const filename = PropertyAccessor.getFilename(node);
+            const line = PropertyAccessor.getSourceLine(node);
+
+            if (filename && line) {
+              siblings.push({
+                element: node,
+                filename: filename,
+                line: line
+              });
+            }
+          }
+        }
+      } else {
+        // Get children of parent (which are siblings of current element)
+        siblings = this.getChildComponents(parent, maxCount + 1) // +1 to account for current element
+          .filter(child => child.element !== element);
+      }
+
+      // Limit to maxCount
+      return siblings.slice(0, maxCount);
+    }
+
+    /**
+     * Create hierarchical tooltip content
+     * @param {Object} hierarchicalInfo - Hierarchical information
+     * @returns {string} HTML content
+     */
+    createHierarchicalTooltipContent(hierarchicalInfo) {
+      const sections = [];
+
+      // Parents section
+      if (hierarchicalInfo.parents.length > 0) {
+        const parentItems = hierarchicalInfo.parents.map((parent, index) => {
+          const indent = "  ".repeat(parent.level - 1);
+          const connector = index === 0 ? "└─ " : "├─ ";
+          const componentName = this.getComponentDisplayName(parent.filename);
+          return `<div style="margin: ${this.styleManager.getCSSProperty('parent-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
+            <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};">${indent}${connector}</span>
+            <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
+          </div>`;
+        });
+
+        sections.push(`
+          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('parent-tooltip-margin-bottom')};">Parent Components:</div>
+          ${parentItems.join("")}
+        `);
+      }
+
+      // Children section
+      if (hierarchicalInfo.children.length > 0) {
+        const childItems = hierarchicalInfo.children.map(child => {
+          const componentName = this.getComponentDisplayName(child.filename);
+          return `<div style="margin: ${this.styleManager.getCSSProperty('parent-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
+            <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};"> ├─ </span>
+            <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
+          </div>`;
+        });
+
+        sections.push(`
+          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('parent-tooltip-margin-bottom')}; margin-top: ${sections.length > 0 ? this.styleManager.getCSSProperty('parent-tooltip-margin-bottom') : '0'};">Child Components:</div>
+          ${childItems.join("")}
+        `);
+      }
+
+      // Siblings section
+      if (hierarchicalInfo.siblings.length > 0) {
+        const siblingItems = hierarchicalInfo.siblings.map(sibling => {
+          const componentName = this.getComponentDisplayName(sibling.filename);
+          return `<div style="margin: ${this.styleManager.getCSSProperty('parent-tooltip-margin')} 0; font-family: ${this.styleManager.getCSSProperty('font-family')};">
+            <span style="color: ${this.styleManager.getCSSProperty('gray-medium')};"> ├─ </span>
+            <span style="color: ${this.styleManager.getCSSProperty('white')};">${componentName}</span>
+          </div>`;
+        });
+
+        sections.push(`
+          <div style="color: ${this.styleManager.getCSSProperty('gray-light')}; font-size: ${this.styleManager.getCSSProperty('font-size-small')}; margin-bottom: ${this.styleManager.getCSSProperty('parent-tooltip-margin-bottom')}; margin-top: ${sections.length > 0 ? this.styleManager.getCSSProperty('parent-tooltip-margin-bottom') : '0'};">Sibling Components:</div>
+          ${siblingItems.join("")}
+        `);
+      }
+
+      return sections.join("");
+    }
+
+    /**
+     * Position hierarchical tooltip relative to main tooltip
+     */
+    positionHierarchicalTooltip() {
+      if (!this.hierarchicalTooltip || !this.mainTooltip) return;
+
+      const mainRect = this.mainTooltip.getBoundingClientRect();
+      const hierarchicalRect = this.hierarchicalTooltip.getBoundingClientRect();
+
+      const position = this.calculateHierarchicalTooltipPosition(mainRect, hierarchicalRect.width, hierarchicalRect.height);
+
+      Object.assign(this.hierarchicalTooltip.style, {
+        left: `${position.left}px`,
+        top: `${position.top}px`,
+      });
+    }
+
+    /**
+     * Calculate optimal position for hierarchical tooltip
+     * @param {DOMRect} mainRect - Main tooltip rectangle
+     * @param {number} width - Hierarchical tooltip width
+     * @param {number} height - Hierarchical tooltip height
+     * @returns {Object} Position coordinates
+     */
+    calculateHierarchicalTooltipPosition(mainRect, width, height) {
+      const margin = parseInt(this.styleManager.getCSSProperty('tooltip-margin')) || 10;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      // Try positions in order of preference: right, left, bottom, top
+      const positions = [
+        // Right of main tooltip
+        {
+          left: mainRect.right + margin,
+          top: mainRect.top
+        },
+        // Left of main tooltip
+        {
+          left: mainRect.left - width - margin,
+          top: mainRect.top
+        },
+        // Below main tooltip
+        {
+          left: mainRect.left,
+          top: mainRect.bottom + margin
+        },
+        // Above main tooltip
+        {
+          left: mainRect.left,
+          top: mainRect.top - height - margin
+        }
+      ];
+
+      // Find first position that fits in viewport
+      for (const position of positions) {
+        if (this.isPositionWithinViewport(position, width, height, margin)) {
+          return position;
+        }
+      }
+
+      // Fallback: position to the right with viewport constraints
+      return {
+        left: Math.min(mainRect.right + margin, viewportWidth - width - margin),
+        top: Math.min(Math.max(mainRect.top, margin), viewportHeight - height - margin)
+      };
+    }
+
+    /**
      * Create parent tooltip content
      * @param {Array} parents - Parent component information
      * @returns {string} HTML content
@@ -1208,8 +1587,14 @@
         this.parentTooltip = null;
       }
 
+      if (this.hierarchicalTooltip) {
+        this.hierarchicalTooltip.remove();
+        this.hierarchicalTooltip = null;
+      }
+
       this.isMainVisible = false;
       this.isParentVisible = false;
+      this.isHierarchicalVisible = false;
     }
   }
 
@@ -1763,6 +2148,7 @@
         this.locatorSystem.overlay.hide();
         this.locatorSystem.tooltip.hideMain();
         this.locatorSystem.tooltip.hideParent();
+        this.locatorSystem.tooltip.hideHierarchical();
         this.locatorSystem.state.parentTooltipToggled = false;
       } else if (event.key === "Shift") {
         this.locatorSystem.state.setShiftPressed(false);
@@ -1809,6 +2195,7 @@
       } else {
         this.locatorSystem.overlay.hide();
         this.locatorSystem.tooltip.hideParent();
+        this.locatorSystem.tooltip.hideHierarchical();
       }
     }
 
@@ -1855,13 +2242,8 @@
       if (!this.locatorSystem.state.currentTargetElement) return;
       if (!this.locatorSystem.tooltip.isMainVisible) return;
 
-      const parentCount = getParentTooltipCount();
-      if (parentCount === 0) return;
-
-      const parents = findParentComponents(this.locatorSystem.state.currentTargetElement, parentCount);
-      if (parents.length > 0) {
-        this.locatorSystem.state.setParentTooltipVisible(true);
-      }
+      // Show hierarchical tooltip instead of just parent tooltip when Alt+Shift is pressed
+      this.locatorSystem.state.setHierarchicalTooltipVisible(true);
     }
 
     /**
@@ -1873,6 +2255,12 @@
       if ((!this.locatorSystem.state.altPressed || !this.locatorSystem.state.shiftPressed) &&
           this.locatorSystem.state.parentTooltipVisible) {
         this.locatorSystem.state.setParentTooltipVisible(false);
+      }
+
+      // Also hide hierarchical tooltip when Alt+Shift is released
+      if ((!this.locatorSystem.state.altPressed || !this.locatorSystem.state.shiftPressed) &&
+          this.locatorSystem.state.hierarchicalTooltipVisible) {
+        this.locatorSystem.state.setHierarchicalTooltipVisible(false);
       }
     }
 

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Hierarchical Tooltip Test</title>
+    <style>
+        .component { 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            margin: 10px; 
+            background: #f9f9f9;
+        }
+        .child { margin-left: 20px; background: #e9f9e9; }
+    </style>
+</head>
+<body>
+    <h1>Simple Test</h1>
+    <p>Hold Alt to see basic tooltip. Hold Alt+Shift to see hierarchical tooltip.</p>
+    
+    <div class="component" __scalasourcepath="/test/Parent.scala" __scalafilename="Parent.scala" __scalasourceline="1">
+        Parent Component
+        <div class="component child" __scalasourcepath="/test/Child1.scala" __scalafilename="Child1.scala" __scalasourceline="1">
+            Child 1
+        </div>
+        <div class="component child" __scalasourcepath="/test/Child2.scala" __scalafilename="Child2.scala" __scalasourceline="1">
+            Child 2
+        </div>
+    </div>
+    
+    <div class="component" __scalasourcepath="/test/Sibling.scala" __scalafilename="Sibling.scala" __scalasourceline="1">
+        Sibling Component
+    </div>
+
+    <script src="locator.js"></script>
+    <script>
+        setTimeout(() => {
+            console.log('Locator system status:', window.globalLocatorSystem?.getStatus());
+        }, 100);
+    </script>
+</body>
+</html>
