@@ -125,6 +125,62 @@
         /* Locator Performance */
         --locator-throttle-delay: 50;
         --locator-debounce-delay: 100;
+
+        /* Component Tree View */
+        --tree-panel-width: 340px;
+        --tree-panel-max-height: 70vh;
+        --tree-panel-min-height: 200px;
+        --tree-panel-bg: var(--locator-white);
+        --tree-panel-border: 1px solid rgba(0, 0, 0, 0.08);
+        --tree-panel-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+        --tree-panel-border-radius: 12px;
+        --tree-panel-padding: 0;
+        --tree-panel-z-index: 10001;
+        --tree-panel-backdrop-filter: blur(8px);
+
+        --tree-header-height: 48px;
+        --tree-header-bg: linear-gradient(135deg, var(--locator-primary-bg-light), rgba(255, 255, 255, 0.9));
+        --tree-header-border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        --tree-header-padding: 0 20px;
+        --tree-header-backdrop-filter: blur(8px);
+
+        --tree-item-height: 32px;
+        --tree-item-padding: 6px 12px;
+        --tree-item-indent: 24px;
+        --tree-item-hover-bg: rgba(0, 123, 255, 0.08);
+        --tree-item-selected-bg: rgba(0, 123, 255, 0.15);
+        --tree-item-active-bg: rgba(0, 123, 255, 0.2);
+        --tree-item-border-radius: 6px;
+        --tree-item-margin: 2px 8px;
+        --tree-item-transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+
+        --tree-icon-size: 18px;
+        --tree-icon-color: #6b7280;
+        --tree-icon-hover-color: var(--locator-primary-color);
+        --tree-expand-icon-size: 14px;
+        --tree-component-icon-color: var(--locator-primary-color);
+
+        --tree-text-color: #1f2937;
+        --tree-text-secondary-color: #6b7280;
+        --tree-text-font-size: 13px;
+        --tree-text-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --tree-text-font-weight: 500;
+        --tree-text-line-height: 1.4;
+
+        --tree-close-button-size: 28px;
+        --tree-close-button-hover-bg: rgba(0, 0, 0, 0.08);
+        --tree-close-button-active-bg: rgba(0, 0, 0, 0.12);
+        --tree-close-button-border-radius: 6px;
+
+        --tree-scrollbar-width: 6px;
+        --tree-scrollbar-track-bg: transparent;
+        --tree-scrollbar-thumb-bg: rgba(0, 0, 0, 0.2);
+        --tree-scrollbar-thumb-hover-bg: rgba(0, 0, 0, 0.3);
+        --tree-scrollbar-border-radius: 3px;
+
+        --tree-focus-ring: 0 0 0 2px rgba(0, 123, 255, 0.3);
+        --tree-animation-duration: 0.2s;
+        --tree-animation-easing: cubic-bezier(0.4, 0, 0.2, 1);
       }
     `;
 
@@ -1948,6 +2004,1546 @@
   }
 
   /**
+   * Component Tree View class for displaying hierarchical component structure
+   *
+   * Features:
+   * - Keyboard shortcut activation: Alt + Shift + Cmd
+   * - Hierarchical tree display of UIComponent elements
+   * - Keyboard navigation (arrow keys, Enter, Escape)
+   * - Mouse hover integration with existing overlay system
+   * - Collapsible/expandable tree nodes
+   * - Context menu with additional actions
+   * - Responsive design for different screen sizes
+   * - Performance optimizations (lazy loading, caching, throttling)
+   * - Real-time updates when components change
+   *
+   * Integration:
+   * - Uses existing UIComponent system and @uicomponent annotations
+   * - Leverages LocatorSystem for component discovery and overlay functionality
+   * - Maintains consistency with existing keyboard navigation patterns
+   * - Follows established CSS custom property conventions
+   *
+   * Usage:
+   * - Press Alt + Shift + Cmd to open/close the tree view
+   * - Use arrow keys to navigate within the tree
+   * - Press Enter to open component files
+   * - Right-click for context menu options
+   * - Hover over tree items to highlight corresponding page components
+   */
+  class ComponentTreeView {
+    constructor(locatorSystem) {
+      this.locatorSystem = locatorSystem;
+      this.isVisible = false;
+      this.treeData = null;
+      this.expandedNodes = new Set();
+      this.selectedNodeId = null;
+      this.panelElement = null;
+      this.treeContainer = null;
+
+      // Performance optimization properties
+      this.nodeCache = new Map();
+      this.renderCache = new Map();
+      this.lastComponentsHash = null;
+      this.throttledRefresh = null;
+      this.animationFrameId = null;
+      this.intersectionObserver = null;
+
+      // Bind methods
+      this.handleKeyDown = this.handleKeyDown.bind(this);
+      this.handleTreeKeyDown = this.handleTreeKeyDown.bind(this);
+      this.handleTreeItemHover = this.handleTreeItemHover.bind(this);
+      this.handleTreeItemClick = this.handleTreeItemClick.bind(this);
+      this.close = this.close.bind(this);
+
+      // Initialize performance optimizations
+      this.initializePerformanceOptimizations();
+
+      // Initialize keyboard shortcut listener
+      this.initializeKeyboardShortcut();
+
+      // Initialize window resize handler
+      this.handleWindowResize = this.handleWindowResize.bind(this);
+      window.addEventListener('resize', this.handleWindowResize);
+    }
+
+    /**
+     * Initialize performance optimizations
+     */
+    initializePerformanceOptimizations() {
+      // Create throttled refresh function
+      this.throttledRefresh = this.throttle(() => {
+        this.refreshTreeIfNeeded();
+      }, 250);
+
+      // Set up intersection observer for lazy loading
+      if ('IntersectionObserver' in window) {
+        this.intersectionObserver = new IntersectionObserver(
+          (entries) => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting) {
+                this.loadNodeContent(entry.target);
+              }
+            });
+          },
+          { threshold: 0.1 }
+        );
+      }
+
+      // Listen for DOM mutations to detect component changes
+      if ('MutationObserver' in window) {
+        this.mutationObserver = new MutationObserver(() => {
+          this.throttledRefresh();
+        });
+      }
+    }
+
+    /**
+     * Initialize keyboard shortcut listener for Alt+Shift+Cmd
+     */
+    initializeKeyboardShortcut() {
+      document.addEventListener('keydown', this.handleKeyDown);
+    }
+
+    /**
+     * Throttle function execution
+     * @param {Function} func - Function to throttle
+     * @param {number} delay - Delay in milliseconds
+     * @returns {Function} Throttled function
+     */
+    throttle(func, delay) {
+      let timeoutId;
+      let lastExecTime = 0;
+
+      return function (...args) {
+        const currentTime = Date.now();
+
+        if (currentTime - lastExecTime > delay) {
+          func.apply(this, args);
+          lastExecTime = currentTime;
+        } else {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            func.apply(this, args);
+            lastExecTime = Date.now();
+          }, delay - (currentTime - lastExecTime));
+        }
+      };
+    }
+
+    /**
+     * Generate hash for components to detect changes
+     * @param {Array} components - Component array
+     * @returns {string} Hash string
+     */
+    generateComponentsHash(components) {
+      return components
+        .map(comp => `${comp.filename}:${comp.line}:${comp.path}`)
+        .join('|');
+    }
+
+    /**
+     * Check if tree needs refresh and refresh if needed
+     */
+    refreshTreeIfNeeded() {
+      if (!this.isVisible) return;
+
+      const components = this.locatorSystem.getAllComponents();
+      const currentHash = this.generateComponentsHash(components);
+
+      if (currentHash !== this.lastComponentsHash) {
+        this.lastComponentsHash = currentHash;
+        this.refreshTree();
+      }
+    }
+
+    /**
+     * Load content for a tree node (lazy loading)
+     * @param {Element} nodeElement - Node element to load
+     */
+    loadNodeContent(nodeElement) {
+      const nodeId = nodeElement.dataset.nodeId;
+      if (!nodeId || this.renderCache.has(nodeId)) return;
+
+      const node = this.findNodeById(nodeId);
+      if (!node) return;
+
+      // Mark as loaded
+      this.renderCache.set(nodeId, true);
+
+      // Load additional metadata if needed
+      this.loadNodeMetadata(node, nodeElement);
+    }
+
+    /**
+     * Load additional metadata for a node
+     * @param {Object} node - Tree node
+     * @param {Element} nodeElement - Node DOM element
+     */
+    loadNodeMetadata(node, nodeElement) {
+      // This could load additional information like component props,
+      // file size, last modified date, etc.
+      // For now, we'll just ensure the element is properly initialized
+
+      if (!nodeElement.dataset.loaded) {
+        nodeElement.dataset.loaded = 'true';
+
+        // Add any additional lazy-loaded content here
+        // For example, component statistics, dependencies, etc.
+      }
+    }
+
+    /**
+     * Handle keyboard shortcut for opening tree view
+     * @param {KeyboardEvent} event - Keyboard event
+     */
+    handleKeyDown(event) {
+      // Alt + Shift + Cmd (Meta) combination
+      if (event.altKey && event.shiftKey && event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        this.toggle();
+      }
+    }
+
+    /**
+     * Toggle tree view visibility
+     */
+    toggle() {
+      if (this.isVisible) {
+        this.hide();
+      } else {
+        this.show();
+      }
+    }
+
+    /**
+     * Show the component tree view
+     */
+    show() {
+      if (this.isVisible) return;
+
+      try {
+        this.buildTreeData();
+        this.initializeTreeState();
+        this.createPanel();
+        this.renderTree();
+        this.positionPanel();
+        this.isVisible = true;
+
+        // Start monitoring for changes
+        this.startChangeMonitoring();
+
+        // Handle edge cases
+        this.handleEdgeCases();
+
+        // Focus the tree for keyboard navigation
+        if (this.treeContainer) {
+          this.treeContainer.focus();
+        }
+      } catch (error) {
+        console.error('Error showing component tree view:', error);
+        this.hide();
+      }
+    }
+
+    /**
+     * Start monitoring for component changes
+     */
+    startChangeMonitoring() {
+      if (this.mutationObserver) {
+        this.mutationObserver.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['data-source-path', '__scalasourcepath']
+        });
+      }
+    }
+
+    /**
+     * Stop monitoring for component changes
+     */
+    stopChangeMonitoring() {
+      if (this.mutationObserver) {
+        this.mutationObserver.disconnect();
+      }
+    }
+
+    /**
+     * Hide the component tree view
+     */
+    hide() {
+      if (!this.isVisible) return;
+
+      // Stop monitoring changes
+      this.stopChangeMonitoring();
+
+      // Cancel any pending animations
+      if (this.animationFrameId) {
+        cancelAnimationFrame(this.animationFrameId);
+        this.animationFrameId = null;
+      }
+
+      if (this.panelElement) {
+        this.panelElement.remove();
+        this.panelElement = null;
+        this.treeContainer = null;
+      }
+
+      this.isVisible = false;
+      this.selectedNodeId = null;
+
+      // Clear caches
+      this.renderCache.clear();
+    }
+
+    /**
+     * Close the tree view (same as hide but can be called from UI)
+     */
+    close() {
+      this.hide();
+    }
+
+    /**
+     * Build hierarchical tree data from components
+     */
+    buildTreeData() {
+      const components = this.locatorSystem.getAllComponents();
+      const currentHash = this.generateComponentsHash(components);
+
+      // Use cached data if available and unchanged
+      if (this.lastComponentsHash === currentHash && this.treeData) {
+        return;
+      }
+
+      this.lastComponentsHash = currentHash;
+      this.treeData = this.buildHierarchy(components);
+
+      // Clear render cache when tree data changes
+      this.renderCache.clear();
+    }
+
+    /**
+     * Build component hierarchy from flat component list
+     * @param {Array} components - Flat list of components
+     * @returns {Array} Hierarchical tree structure
+     */
+    buildHierarchy(components) {
+      const nodeMap = new Map();
+      const rootNodes = [];
+
+      // Create tree nodes for each component
+      components.forEach((comp, index) => {
+        const node = {
+          id: `node-${index}`,
+          element: comp.element,
+          filename: comp.filename,
+          line: comp.line,
+          path: comp.path,
+          children: [],
+          parent: null,
+          expanded: false,
+          level: 0
+        };
+        nodeMap.set(comp.element, node);
+      });
+
+      // Build parent-child relationships
+      components.forEach(comp => {
+        const node = nodeMap.get(comp.element);
+        const parentElement = this.findParentComponent(comp.element);
+
+        if (parentElement && nodeMap.has(parentElement)) {
+          const parentNode = nodeMap.get(parentElement);
+          node.parent = parentNode;
+          node.level = parentNode.level + 1;
+          parentNode.children.push(node);
+        } else {
+          // This is a root node
+          rootNodes.push(node);
+        }
+      });
+
+      // Sort children by DOM order for consistent display
+      this.sortNodesByDOMOrder(rootNodes);
+
+      return rootNodes;
+    }
+
+    /**
+     * Find parent component element using existing keyboard navigator logic
+     * @param {Element} element - Child element
+     * @returns {Element|null} Parent component element
+     */
+    findParentComponent(element) {
+      return this.locatorSystem.keyboard.findParentComponent(element);
+    }
+
+    /**
+     * Sort tree nodes by their DOM order recursively
+     * @param {Array} nodes - Array of tree nodes to sort
+     */
+    sortNodesByDOMOrder(nodes) {
+      // Sort by DOM position
+      nodes.sort((a, b) => {
+        const position = a.element.compareDocumentPosition(b.element);
+        if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
+          return -1;
+        } else if (position & Node.DOCUMENT_POSITION_PRECEDING) {
+          return 1;
+        }
+        return 0;
+      });
+
+      // Recursively sort children
+      nodes.forEach(node => {
+        if (node.children.length > 0) {
+          this.sortNodesByDOMOrder(node.children);
+        }
+      });
+    }
+
+    /**
+     * Get display name for a component
+     * @param {Object} node - Tree node
+     * @returns {string} Display name
+     */
+    getComponentDisplayName(node) {
+      // Extract component name from filename
+      const filename = node.filename || 'Unknown';
+      const baseName = filename.replace(/\.(scala|js|ts)$/, '');
+
+      // Try to get a more descriptive name from the element
+      const element = node.element;
+      const tagName = element.tagName.toLowerCase();
+      const className = element.className;
+      const id = element.id;
+
+      let displayName = baseName;
+
+      // Add additional context if available
+      if (id) {
+        displayName += `#${id}`;
+      } else if (className && typeof className === 'string') {
+        const classes = className.split(' ').filter(c => c.trim()).slice(0, 2);
+        if (classes.length > 0) {
+          displayName += `.${classes.join('.')}`;
+        }
+      }
+
+      // Add tag name for HTML elements
+      if (tagName !== 'div' && tagName !== 'span') {
+        displayName += ` <${tagName}>`;
+      }
+
+      return displayName;
+    }
+
+    /**
+     * Flatten tree structure for linear navigation
+     * @param {Array} nodes - Root nodes
+     * @param {Array} result - Accumulator for flattened nodes
+     * @returns {Array} Flattened array of visible nodes
+     */
+    flattenVisibleNodes(nodes = this.treeData, result = []) {
+      nodes.forEach(node => {
+        result.push(node);
+        if (node.expanded && node.children.length > 0) {
+          this.flattenVisibleNodes(node.children, result);
+        }
+      });
+      return result;
+    }
+
+    /**
+     * Create the main panel element
+     */
+    createPanel() {
+      // Create main panel container
+      this.panelElement = document.createElement('div');
+      this.panelElement.className = 'locator-tree-panel';
+      this.panelElement.style.cssText = `
+        position: fixed;
+        width: var(--tree-panel-width);
+        max-height: var(--tree-panel-max-height);
+        min-height: var(--tree-panel-min-height);
+        background: var(--tree-panel-bg);
+        border: var(--tree-panel-border);
+        border-radius: var(--tree-panel-border-radius);
+        box-shadow: var(--tree-panel-shadow);
+        z-index: var(--tree-panel-z-index);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        font-family: var(--tree-text-font-family);
+        font-size: var(--tree-text-font-size);
+        backdrop-filter: var(--tree-panel-backdrop-filter);
+        -webkit-backdrop-filter: var(--tree-panel-backdrop-filter);
+      `;
+
+      // Create header
+      const header = document.createElement('div');
+      header.className = 'locator-tree-header';
+      header.style.cssText = `
+        height: var(--tree-header-height);
+        background: var(--tree-header-bg);
+        border-bottom: var(--tree-header-border-bottom);
+        padding: var(--tree-header-padding);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+        backdrop-filter: var(--tree-header-backdrop-filter);
+        -webkit-backdrop-filter: var(--tree-header-backdrop-filter);
+        border-radius: var(--tree-panel-border-radius) var(--tree-panel-border-radius) 0 0;
+      `;
+
+      // Create title
+      const title = document.createElement('div');
+      title.className = 'locator-tree-title';
+      title.textContent = 'Component Tree';
+      title.style.cssText = `
+        font-weight: 700;
+        color: var(--tree-text-color);
+        font-size: 15px;
+        letter-spacing: -0.01em;
+      `;
+
+      // Create close button
+      const closeButton = document.createElement('button');
+      closeButton.className = 'locator-tree-close';
+      closeButton.innerHTML = '✕';
+      closeButton.style.cssText = `
+        width: var(--tree-close-button-size);
+        height: var(--tree-close-button-size);
+        border: none;
+        background: transparent;
+        color: var(--tree-text-secondary-color);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        border-radius: var(--tree-close-button-border-radius);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--tree-item-transition);
+        opacity: 0.7;
+      `;
+
+      closeButton.addEventListener('mouseenter', () => {
+        closeButton.style.background = 'var(--tree-close-button-hover-bg)';
+        closeButton.style.opacity = '1';
+        closeButton.style.color = 'var(--tree-text-color)';
+      });
+
+      closeButton.addEventListener('mouseleave', () => {
+        closeButton.style.background = 'transparent';
+        closeButton.style.opacity = '0.7';
+        closeButton.style.color = 'var(--tree-text-secondary-color)';
+      });
+
+      closeButton.addEventListener('mousedown', () => {
+        closeButton.style.background = 'var(--tree-close-button-active-bg)';
+      });
+
+      closeButton.addEventListener('mouseup', () => {
+        closeButton.style.background = 'var(--tree-close-button-hover-bg)';
+      });
+
+      closeButton.addEventListener('click', this.close);
+
+      // Create tree container
+      this.treeContainer = document.createElement('div');
+      this.treeContainer.className = 'locator-tree-container';
+      this.treeContainer.tabIndex = 0; // Make focusable for keyboard navigation
+      this.treeContainer.style.cssText = `
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 0;
+        outline: none;
+        scroll-behavior: smooth;
+      `;
+
+      // Add focus styling
+      this.treeContainer.addEventListener('focus', () => {
+        this.treeContainer.style.boxShadow = 'inset var(--tree-focus-ring)';
+      });
+
+      this.treeContainer.addEventListener('blur', () => {
+        this.treeContainer.style.boxShadow = 'none';
+      });
+
+      // Add custom scrollbar styling
+      this.treeContainer.style.cssText += `
+        scrollbar-width: thin;
+        scrollbar-color: var(--tree-scrollbar-thumb-bg) var(--tree-scrollbar-track-bg);
+      `;
+
+      // Add webkit scrollbar styles for better cross-browser support
+      const scrollbarStyle = document.createElement('style');
+      scrollbarStyle.id = 'locator-tree-scrollbar-styles';
+      scrollbarStyle.textContent = `
+        .locator-tree-container::-webkit-scrollbar {
+          width: var(--tree-scrollbar-width);
+        }
+        .locator-tree-container::-webkit-scrollbar-track {
+          background: var(--tree-scrollbar-track-bg);
+          border-radius: var(--tree-scrollbar-border-radius);
+        }
+        .locator-tree-container::-webkit-scrollbar-thumb {
+          background: var(--tree-scrollbar-thumb-bg);
+          border-radius: var(--tree-scrollbar-border-radius);
+        }
+        .locator-tree-container::-webkit-scrollbar-thumb:hover {
+          background: var(--tree-scrollbar-thumb-hover-bg);
+        }
+        .locator-tree-container::-webkit-scrollbar-corner {
+          background: transparent;
+        }
+      `;
+
+      // Only add if not already present
+      if (!document.getElementById('locator-tree-scrollbar-styles')) {
+        document.head.appendChild(scrollbarStyle);
+      }
+
+      // Add keyboard event listener
+      this.treeContainer.addEventListener('keydown', this.handleTreeKeyDown);
+
+      // Add mouse leave handler
+      this.treeContainer.addEventListener('mouseleave', () => {
+        this.handleTreeMouseLeave();
+      });
+
+      // Assemble the panel
+      header.appendChild(title);
+      header.appendChild(closeButton);
+      this.panelElement.appendChild(header);
+      this.panelElement.appendChild(this.treeContainer);
+
+      // Add keyboard shortcuts info
+      this.addKeyboardShortcutsInfo();
+
+      // Add to document
+      document.body.appendChild(this.panelElement);
+    }
+
+    /**
+     * Render the tree structure
+     */
+    renderTree() {
+      if (!this.treeContainer || !this.treeData) return;
+
+      // Clear existing content
+      this.treeContainer.innerHTML = '';
+
+      // Render root nodes
+      this.treeData.forEach(node => {
+        this.renderTreeNode(node, this.treeContainer);
+      });
+
+      // If no components found, show message
+      if (this.treeData.length === 0) {
+        const emptyMessage = document.createElement('div');
+        emptyMessage.className = 'locator-tree-empty';
+        emptyMessage.textContent = 'No components found';
+        emptyMessage.style.cssText = `
+          padding: 20px;
+          text-align: center;
+          color: var(--tree-text-secondary-color);
+          font-style: italic;
+        `;
+        this.treeContainer.appendChild(emptyMessage);
+      }
+    }
+
+    /**
+     * Render a single tree node and its children
+     * @param {Object} node - Tree node to render
+     * @param {Element} container - Container element
+     */
+    renderTreeNode(node, container) {
+      // Create node element
+      const nodeElement = document.createElement('div');
+      nodeElement.className = 'locator-tree-node';
+      nodeElement.dataset.nodeId = node.id;
+      nodeElement.style.cssText = `
+        display: flex;
+        align-items: center;
+        min-height: var(--tree-item-height);
+        padding: var(--tree-item-padding);
+        margin: var(--tree-item-margin);
+        margin-left: calc(var(--tree-item-margin) + ${node.level * parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tree-item-indent') || '24')}px);
+        border-radius: var(--tree-item-border-radius);
+        cursor: pointer;
+        transition: var(--tree-item-transition);
+        user-select: none;
+        position: relative;
+      `;
+
+      // Add hover effects
+      nodeElement.addEventListener('mouseenter', (e) => {
+        if (this.selectedNodeId !== node.id) {
+          nodeElement.style.background = 'var(--tree-item-hover-bg)';
+          nodeElement.style.transform = 'translateX(2px)';
+        }
+        this.handleTreeItemHover(e);
+      });
+
+      nodeElement.addEventListener('mouseleave', () => {
+        if (this.selectedNodeId !== node.id) {
+          nodeElement.style.background = 'transparent';
+          nodeElement.style.transform = 'translateX(0)';
+        }
+      });
+
+      // Add active state
+      nodeElement.addEventListener('mousedown', () => {
+        nodeElement.style.background = 'var(--tree-item-active-bg)';
+      });
+
+      nodeElement.addEventListener('mouseup', () => {
+        const bg = this.selectedNodeId === node.id ?
+          'var(--tree-item-selected-bg)' : 'var(--tree-item-hover-bg)';
+        nodeElement.style.background = bg;
+      });
+
+      // Add click handler
+      nodeElement.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.handleTreeItemClick(e);
+      });
+
+      // Add context menu handler
+      nodeElement.addEventListener('contextmenu', (e) => {
+        e.stopPropagation();
+        this.showContextMenu(node, e);
+      });
+
+      // Create expand/collapse icon
+      const expandIcon = document.createElement('span');
+      expandIcon.className = 'locator-tree-expand-icon';
+      expandIcon.style.cssText = `
+        width: var(--tree-expand-icon-size);
+        height: var(--tree-expand-icon-size);
+        margin-right: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--tree-icon-color);
+        font-size: 10px;
+        transition: var(--tree-item-transition);
+        flex-shrink: 0;
+        border-radius: 2px;
+      `;
+
+      if (node.children.length > 0) {
+        expandIcon.innerHTML = '▶';
+        expandIcon.style.cursor = 'pointer';
+        expandIcon.style.transform = node.expanded ? 'rotate(90deg)' : 'rotate(0deg)';
+
+        expandIcon.addEventListener('mouseenter', () => {
+          expandIcon.style.background = 'var(--tree-item-hover-bg)';
+          expandIcon.style.color = 'var(--tree-icon-hover-color)';
+        });
+
+        expandIcon.addEventListener('mouseleave', () => {
+          expandIcon.style.background = 'transparent';
+          expandIcon.style.color = 'var(--tree-icon-color)';
+        });
+
+        expandIcon.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleNodeExpansion(node);
+        });
+      } else {
+        expandIcon.innerHTML = '•';
+        expandIcon.style.opacity = '0.4';
+        expandIcon.style.fontSize = '8px';
+      }
+
+      // Create component icon
+      const componentIcon = document.createElement('span');
+      componentIcon.className = 'locator-tree-component-icon';
+      componentIcon.innerHTML = '⚡'; // Component icon
+      componentIcon.style.cssText = `
+        width: var(--tree-icon-size);
+        height: var(--tree-icon-size);
+        margin-right: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--tree-component-icon-color);
+        font-size: 12px;
+        flex-shrink: 0;
+        opacity: 0.8;
+      `;
+
+      // Create text content
+      const textContent = document.createElement('div');
+      textContent.className = 'locator-tree-text';
+      textContent.style.cssText = `
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        line-height: var(--tree-text-line-height);
+      `;
+
+      // Component name
+      const nameElement = document.createElement('div');
+      nameElement.className = 'locator-tree-name';
+      nameElement.textContent = this.getComponentDisplayName(node);
+      nameElement.style.cssText = `
+        color: var(--tree-text-color);
+        font-weight: var(--tree-text-font-weight);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: var(--tree-text-font-size);
+      `;
+
+      // Component metadata
+      const metaElement = document.createElement('div');
+      metaElement.className = 'locator-tree-meta';
+      metaElement.textContent = `${node.filename}:${node.line}`;
+      metaElement.style.cssText = `
+        color: var(--tree-text-secondary-color);
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 1px;
+        opacity: 0.8;
+      `;
+
+      // Assemble node
+      textContent.appendChild(nameElement);
+      textContent.appendChild(metaElement);
+      nodeElement.appendChild(expandIcon);
+      nodeElement.appendChild(componentIcon);
+      nodeElement.appendChild(textContent);
+
+      // Add to container
+      container.appendChild(nodeElement);
+
+      // Render children if expanded
+      if (node.expanded && node.children.length > 0) {
+        node.children.forEach(child => {
+          this.renderTreeNode(child, container);
+        });
+      }
+    }
+
+    /**
+     * Toggle expansion state of a tree node
+     * @param {Object} node - Tree node to toggle
+     */
+    toggleNodeExpansion(node) {
+      if (node.children.length === 0) return;
+
+      const wasExpanded = node.expanded;
+      node.expanded = !node.expanded;
+
+      // Update expanded nodes set
+      if (node.expanded) {
+        this.expandedNodes.add(node.id);
+      } else {
+        this.expandedNodes.delete(node.id);
+      }
+
+      // Animate the expansion/collapse
+      this.animateNodeToggle(node, wasExpanded);
+    }
+
+    /**
+     * Animate node expansion/collapse
+     * @param {Object} node - Tree node
+     * @param {boolean} wasExpanded - Previous expansion state
+     */
+    animateNodeToggle(node, wasExpanded) {
+      // Cancel any existing animation
+      if (this.animationFrameId) {
+        cancelAnimationFrame(this.animationFrameId);
+      }
+
+      // Find the node element
+      const nodeElement = this.treeContainer.querySelector(`[data-node-id="${node.id}"]`);
+      if (!nodeElement) {
+        this.renderTree();
+        return;
+      }
+
+      // Update the expand icon immediately
+      const expandIcon = nodeElement.querySelector('.locator-tree-expand-icon');
+      if (expandIcon) {
+        expandIcon.innerHTML = node.expanded ? '▼' : '▶';
+        expandIcon.style.transform = node.expanded ? 'rotate(0deg)' : 'rotate(-90deg)';
+        expandIcon.style.transition = 'transform 0.2s ease';
+      }
+
+      // Use requestAnimationFrame for smooth rendering
+      this.animationFrameId = requestAnimationFrame(() => {
+        this.renderTree();
+        this.animationFrameId = null;
+      });
+    }
+
+    /**
+     * Expand all nodes in the tree
+     */
+    expandAll() {
+      this.forEachNode(this.treeData, (node) => {
+        if (node.children.length > 0) {
+          node.expanded = true;
+          this.expandedNodes.add(node.id);
+        }
+      });
+      this.renderTree();
+    }
+
+    /**
+     * Collapse all nodes in the tree
+     */
+    collapseAll() {
+      this.forEachNode(this.treeData, (node) => {
+        node.expanded = false;
+        this.expandedNodes.delete(node.id);
+      });
+      this.renderTree();
+    }
+
+    /**
+     * Apply function to each node in the tree
+     * @param {Array} nodes - Tree nodes
+     * @param {Function} fn - Function to apply
+     */
+    forEachNode(nodes, fn) {
+      nodes.forEach(node => {
+        fn(node);
+        if (node.children.length > 0) {
+          this.forEachNode(node.children, fn);
+        }
+      });
+    }
+
+    /**
+     * Find tree node by ID
+     * @param {string} nodeId - Node ID to find
+     * @returns {Object|null} Found node or null
+     */
+    findNodeById(nodeId) {
+      let found = null;
+      this.forEachNode(this.treeData, (node) => {
+        if (node.id === nodeId) {
+          found = node;
+        }
+      });
+      return found;
+    }
+
+    /**
+     * Position the panel intelligently on screen
+     */
+    positionPanel() {
+      if (!this.panelElement) return;
+
+      const panel = this.panelElement;
+      const viewport = {
+        width: window.innerWidth,
+        height: window.innerHeight
+      };
+
+      // Responsive design adjustments
+      const isMobile = viewport.width < 768;
+      const isTablet = viewport.width >= 768 && viewport.width < 1024;
+
+      let panelWidth, margin;
+
+      if (isMobile) {
+        // Mobile: full width with small margins
+        panelWidth = viewport.width - 32;
+        margin = 16;
+        panel.style.width = `${panelWidth}px`;
+        panel.style.maxHeight = '60vh';
+      } else if (isTablet) {
+        // Tablet: slightly wider panel
+        panelWidth = Math.min(380, viewport.width - 64);
+        margin = 32;
+        panel.style.width = `${panelWidth}px`;
+        panel.style.maxHeight = '70vh';
+      } else {
+        // Desktop: use CSS variable width
+        const panelRect = panel.getBoundingClientRect();
+        panelWidth = panelRect.width || 340;
+        margin = 24;
+      }
+
+      const panelHeight = panel.getBoundingClientRect().height || Math.min(600, viewport.height * 0.7);
+
+      // Calculate optimal position
+      let left, top;
+
+      if (isMobile) {
+        // Mobile: center horizontally, position near top
+        left = (viewport.width - panelWidth) / 2;
+        top = margin * 2;
+      } else {
+        // Desktop/Tablet: prefer top-right corner
+        left = viewport.width - panelWidth - margin;
+        top = margin;
+
+        // Ensure panel fits within viewport
+        if (left < margin) {
+          left = margin;
+        }
+      }
+
+      if (top + panelHeight > viewport.height - margin) {
+        top = viewport.height - panelHeight - margin;
+      }
+
+      // Ensure minimum visibility
+      if (top < margin) {
+        top = margin;
+        // If still doesn't fit, reduce height
+        const maxHeight = viewport.height - (margin * 2);
+        panel.style.maxHeight = `${maxHeight}px`;
+      }
+
+      // Apply position
+      panel.style.left = `${left}px`;
+      panel.style.top = `${top}px`;
+
+      // Add entrance animation with enhanced easing
+      panel.style.opacity = '0';
+      panel.style.transform = 'translateY(-12px) scale(0.96)';
+      panel.style.transition = `
+        opacity var(--tree-animation-duration) var(--tree-animation-easing),
+        transform var(--tree-animation-duration) var(--tree-animation-easing)
+      `;
+
+      // Trigger animation
+      requestAnimationFrame(() => {
+        panel.style.opacity = '1';
+        panel.style.transform = 'translateY(0) scale(1)';
+      });
+    }
+
+    /**
+     * Handle keyboard navigation within the tree
+     * @param {KeyboardEvent} event - Keyboard event
+     */
+    handleTreeKeyDown(event) {
+      const visibleNodes = this.flattenVisibleNodes();
+      if (visibleNodes.length === 0) return;
+
+      let currentIndex = -1;
+      if (this.selectedNodeId) {
+        currentIndex = visibleNodes.findIndex(node => node.id === this.selectedNodeId);
+      }
+
+      switch (event.key) {
+        case 'ArrowUp':
+          event.preventDefault();
+          this.navigateUp(visibleNodes, currentIndex);
+          break;
+
+        case 'ArrowDown':
+          event.preventDefault();
+          this.navigateDown(visibleNodes, currentIndex);
+          break;
+
+        case 'ArrowLeft':
+          event.preventDefault();
+          this.navigateLeft(visibleNodes, currentIndex);
+          break;
+
+        case 'ArrowRight':
+          event.preventDefault();
+          this.navigateRight(visibleNodes, currentIndex);
+          break;
+
+        case 'Enter':
+        case ' ':
+          event.preventDefault();
+          this.activateSelectedNode();
+          break;
+
+        case 'Escape':
+          event.preventDefault();
+          this.hide();
+          break;
+
+        case 'Home':
+          event.preventDefault();
+          this.selectNode(visibleNodes[0]);
+          break;
+
+        case 'End':
+          event.preventDefault();
+          this.selectNode(visibleNodes[visibleNodes.length - 1]);
+          break;
+      }
+    }
+
+    /**
+     * Navigate up in the tree
+     * @param {Array} visibleNodes - Array of visible nodes
+     * @param {number} currentIndex - Current selection index
+     */
+    navigateUp(visibleNodes, currentIndex) {
+      if (currentIndex > 0) {
+        this.selectNode(visibleNodes[currentIndex - 1]);
+      } else if (visibleNodes.length > 0) {
+        // Wrap to last item
+        this.selectNode(visibleNodes[visibleNodes.length - 1]);
+      }
+    }
+
+    /**
+     * Navigate down in the tree
+     * @param {Array} visibleNodes - Array of visible nodes
+     * @param {number} currentIndex - Current selection index
+     */
+    navigateDown(visibleNodes, currentIndex) {
+      if (currentIndex < visibleNodes.length - 1) {
+        this.selectNode(visibleNodes[currentIndex + 1]);
+      } else if (visibleNodes.length > 0) {
+        // Wrap to first item
+        this.selectNode(visibleNodes[0]);
+      }
+    }
+
+    /**
+     * Navigate left in the tree (collapse or go to parent)
+     * @param {Array} visibleNodes - Array of visible nodes
+     * @param {number} currentIndex - Current selection index
+     */
+    navigateLeft(visibleNodes, currentIndex) {
+      if (currentIndex === -1) return;
+
+      const currentNode = visibleNodes[currentIndex];
+
+      if (currentNode.expanded && currentNode.children.length > 0) {
+        // Collapse current node
+        this.toggleNodeExpansion(currentNode);
+      } else if (currentNode.parent) {
+        // Go to parent node
+        this.selectNode(currentNode.parent);
+      }
+    }
+
+    /**
+     * Navigate right in the tree (expand or go to first child)
+     * @param {Array} visibleNodes - Array of visible nodes
+     * @param {number} currentIndex - Current selection index
+     */
+    navigateRight(visibleNodes, currentIndex) {
+      if (currentIndex === -1) return;
+
+      const currentNode = visibleNodes[currentIndex];
+
+      if (currentNode.children.length > 0) {
+        if (!currentNode.expanded) {
+          // Expand current node
+          this.toggleNodeExpansion(currentNode);
+        } else {
+          // Go to first child
+          this.selectNode(currentNode.children[0]);
+        }
+      }
+    }
+
+    /**
+     * Activate the currently selected node (expand/collapse or open file)
+     */
+    activateSelectedNode() {
+      if (!this.selectedNodeId) return;
+
+      const node = this.findNodeById(this.selectedNodeId);
+      if (!node) return;
+
+      if (node.children.length > 0) {
+        // Toggle expansion for nodes with children
+        this.toggleNodeExpansion(node);
+      } else {
+        // Open file for leaf nodes
+        this.openNodeFile(node);
+      }
+    }
+
+    /**
+     * Select a tree node
+     * @param {Object} node - Node to select
+     */
+    selectNode(node) {
+      if (!node) return;
+
+      // Update selection
+      const previousId = this.selectedNodeId;
+      this.selectedNodeId = node.id;
+
+      // Update visual selection
+      this.updateNodeSelection(previousId, node.id);
+
+      // Scroll into view
+      this.scrollNodeIntoView(node.id);
+
+      // Trigger hover effect on the actual component
+      this.locatorSystem.showOverlayForElement(node.element);
+    }
+
+    /**
+     * Update visual selection state
+     * @param {string|null} previousId - Previous selected node ID
+     * @param {string} currentId - Current selected node ID
+     */
+    updateNodeSelection(previousId, currentId) {
+      // Remove previous selection
+      if (previousId) {
+        const prevElement = this.treeContainer.querySelector(`[data-node-id="${previousId}"]`);
+        if (prevElement) {
+          prevElement.style.background = 'transparent';
+        }
+      }
+
+      // Add current selection
+      const currentElement = this.treeContainer.querySelector(`[data-node-id="${currentId}"]`);
+      if (currentElement) {
+        currentElement.style.background = 'var(--tree-item-selected-bg)';
+      }
+    }
+
+    /**
+     * Scroll node into view
+     * @param {string} nodeId - Node ID to scroll to
+     */
+    scrollNodeIntoView(nodeId) {
+      const nodeElement = this.treeContainer.querySelector(`[data-node-id="${nodeId}"]`);
+      if (nodeElement) {
+        nodeElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+      }
+    }
+
+    /**
+     * Open file for a tree node
+     * @param {Object} node - Tree node
+     */
+    openNodeFile(node) {
+      if (!node.path || !node.line) return;
+
+      try {
+        // Use the existing openFileAtSourcePath function
+        openFileAtSourcePath(node.path, node.line);
+        // Optionally close the tree view after opening file
+        // this.hide();
+      } catch (error) {
+        console.error('Error opening file from tree view:', error);
+      }
+    }
+
+    /**
+     * Handle mouse hover over tree items
+     * @param {MouseEvent} event - Mouse event
+     */
+    handleTreeItemHover(event) {
+      const nodeElement = event.target.closest('[data-node-id]');
+      if (!nodeElement) return;
+
+      const nodeId = nodeElement.dataset.nodeId;
+      const node = this.findNodeById(nodeId);
+      if (!node) return;
+
+      // Show overlay for the corresponding component
+      this.locatorSystem.showOverlayForElement(node.element);
+    }
+
+    /**
+     * Handle click on tree items
+     * @param {MouseEvent} event - Mouse event
+     */
+    handleTreeItemClick(event) {
+      const nodeElement = event.target.closest('[data-node-id]');
+      if (!nodeElement) return;
+
+      const nodeId = nodeElement.dataset.nodeId;
+      const node = this.findNodeById(nodeId);
+      if (!node) return;
+
+      // Select the node
+      this.selectNode(node);
+
+      // Handle different click behaviors
+      if (event.detail === 2) {
+        // Double click - open file
+        this.openNodeFile(node);
+      } else if (event.shiftKey) {
+        // Shift click - toggle expansion
+        if (node.children.length > 0) {
+          this.toggleNodeExpansion(node);
+        }
+      } else {
+        // Single click - just select and show overlay
+        // Already handled by selectNode above
+      }
+    }
+
+    /**
+     * Handle mouse leave from tree container
+     */
+    handleTreeMouseLeave() {
+      // Hide overlay when mouse leaves tree
+      this.locatorSystem.hideAll();
+    }
+
+    /**
+     * Initialize tree with some default expansions
+     */
+    initializeTreeState() {
+      // Expand root nodes by default
+      if (this.treeData && this.treeData.length > 0) {
+        this.treeData.forEach(node => {
+          if (node.children.length > 0) {
+            node.expanded = true;
+            this.expandedNodes.add(node.id);
+          }
+        });
+      }
+    }
+
+    /**
+     * Handle window resize events
+     */
+    handleWindowResize() {
+      if (this.isVisible && this.panelElement) {
+        // Throttle resize handling
+        clearTimeout(this.resizeTimeout);
+        this.resizeTimeout = setTimeout(() => {
+          this.positionPanel();
+        }, 150);
+      }
+    }
+
+    /**
+     * Update tree when components change
+     */
+    refreshTree() {
+      if (!this.isVisible) return;
+
+      const wasExpanded = new Set(this.expandedNodes);
+      const selectedId = this.selectedNodeId;
+
+      // Rebuild tree data
+      this.buildTreeData();
+
+      // Restore expansion states
+      this.forEachNode(this.treeData, (node) => {
+        if (wasExpanded.has(node.id)) {
+          node.expanded = true;
+          this.expandedNodes.add(node.id);
+        }
+      });
+
+      // Re-render
+      this.renderTree();
+
+      // Restore selection if possible
+      if (selectedId && this.findNodeById(selectedId)) {
+        this.selectedNodeId = selectedId;
+        this.updateNodeSelection(null, selectedId);
+      }
+    }
+
+    /**
+     * Add keyboard shortcuts info to the tree panel
+     */
+    addKeyboardShortcutsInfo() {
+      if (!this.treeContainer) return;
+
+      const shortcutsInfo = document.createElement('div');
+      shortcutsInfo.className = 'locator-tree-shortcuts';
+      shortcutsInfo.style.cssText = `
+        padding: 8px 12px;
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        background: rgba(0, 0, 0, 0.02);
+        font-size: 11px;
+        color: var(--tree-text-secondary-color);
+        line-height: 1.3;
+      `;
+
+      shortcutsInfo.innerHTML = `
+        <div style="margin-bottom: 4px;"><strong>Keyboard shortcuts:</strong></div>
+        <div>↑↓ Navigate • ←→ Expand/Collapse • Enter Open • Esc Close</div>
+      `;
+
+      this.panelElement.appendChild(shortcutsInfo);
+    }
+
+    /**
+     * Handle edge cases and error recovery
+     */
+    handleEdgeCases() {
+      // Handle case where no components are found
+      if (!this.treeData || this.treeData.length === 0) {
+        console.warn('ComponentTreeView: No components found');
+        return;
+      }
+
+      // Handle case where DOM elements are removed
+      this.forEachNode(this.treeData, (node) => {
+        if (!document.contains(node.element)) {
+          console.warn('ComponentTreeView: Component element no longer in DOM', node);
+        }
+      });
+
+      // Handle case where panel is positioned off-screen
+      if (this.panelElement) {
+        const rect = this.panelElement.getBoundingClientRect();
+        if (rect.left < 0 || rect.top < 0 ||
+            rect.right > window.innerWidth || rect.bottom > window.innerHeight) {
+          this.positionPanel();
+        }
+      }
+    }
+
+    /**
+     * Add context menu for tree items
+     * @param {Object} node - Tree node
+     * @param {MouseEvent} event - Mouse event
+     */
+    showContextMenu(node, event) {
+      event.preventDefault();
+
+      const contextMenu = document.createElement('div');
+      contextMenu.className = 'locator-tree-context-menu';
+      contextMenu.style.cssText = `
+        position: fixed;
+        left: ${event.clientX}px;
+        top: ${event.clientY}px;
+        background: var(--tree-panel-bg);
+        border: var(--tree-panel-border);
+        border-radius: 6px;
+        box-shadow: var(--tree-panel-shadow);
+        z-index: ${parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tree-panel-z-index')) + 1};
+        padding: 4px 0;
+        min-width: 150px;
+        font-size: 12px;
+      `;
+
+      const menuItems = [
+        { label: 'Open File', action: () => this.openNodeFile(node) },
+        { label: 'Copy Path', action: () => navigator.clipboard?.writeText(node.path) },
+        { label: 'Expand All Children', action: () => this.expandNodeChildren(node) },
+        { label: 'Collapse All Children', action: () => this.collapseNodeChildren(node) }
+      ];
+
+      menuItems.forEach(item => {
+        const menuItem = document.createElement('div');
+        menuItem.textContent = item.label;
+        menuItem.style.cssText = `
+          padding: 6px 12px;
+          cursor: pointer;
+          transition: background-color 0.15s ease;
+        `;
+
+        menuItem.addEventListener('mouseenter', () => {
+          menuItem.style.background = 'var(--tree-item-hover-bg)';
+        });
+
+        menuItem.addEventListener('mouseleave', () => {
+          menuItem.style.background = 'transparent';
+        });
+
+        menuItem.addEventListener('click', () => {
+          item.action();
+          contextMenu.remove();
+        });
+
+        contextMenu.appendChild(menuItem);
+      });
+
+      document.body.appendChild(contextMenu);
+
+      // Remove context menu when clicking elsewhere
+      const removeMenu = (e) => {
+        if (!contextMenu.contains(e.target)) {
+          contextMenu.remove();
+          document.removeEventListener('click', removeMenu);
+        }
+      };
+
+      setTimeout(() => {
+        document.addEventListener('click', removeMenu);
+      }, 0);
+    }
+
+    /**
+     * Expand all children of a node
+     * @param {Object} node - Tree node
+     */
+    expandNodeChildren(node) {
+      this.forEachNode([node], (n) => {
+        if (n.children.length > 0) {
+          n.expanded = true;
+          this.expandedNodes.add(n.id);
+        }
+      });
+      this.renderTree();
+    }
+
+    /**
+     * Collapse all children of a node
+     * @param {Object} node - Tree node
+     */
+    collapseNodeChildren(node) {
+      this.forEachNode(node.children, (n) => {
+        n.expanded = false;
+        this.expandedNodes.delete(n.id);
+      });
+      this.renderTree();
+    }
+
+    /**
+     * Cleanup resources
+     */
+    destroy() {
+      this.hide();
+      document.removeEventListener('keydown', this.handleKeyDown);
+      window.removeEventListener('resize', this.handleWindowResize);
+
+      // Clean up performance optimization resources
+      if (this.mutationObserver) {
+        this.mutationObserver.disconnect();
+        this.mutationObserver = null;
+      }
+
+      if (this.intersectionObserver) {
+        this.intersectionObserver.disconnect();
+        this.intersectionObserver = null;
+      }
+
+      if (this.animationFrameId) {
+        cancelAnimationFrame(this.animationFrameId);
+        this.animationFrameId = null;
+      }
+
+      if (this.resizeTimeout) {
+        clearTimeout(this.resizeTimeout);
+        this.resizeTimeout = null;
+      }
+
+      // Clear all caches
+      this.nodeCache.clear();
+      this.renderCache.clear();
+      this.throttledRefresh = null;
+    }
+  }
+
+  /**
    * Main LocatorSystem class that orchestrates all components
    */
   class LocatorSystem {
@@ -1960,6 +3556,7 @@
       this.tooltip = new TooltipManager(this.state);
       this.keyboard = new KeyboardNavigator(this.state, this.overlay);
       this.events = new EventManager(this);
+      this.treeView = new ComponentTreeView(this);
 
       // Configuration
       this.options = {
@@ -2118,6 +3715,7 @@
       this.overlay.destroy();
       this.tooltip.destroy();
       this.keyboard.destroy();
+      this.treeView.destroy();
 
       // Reset state
       this.state.reset();
