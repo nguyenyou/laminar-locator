@@ -1751,8 +1751,16 @@
           clientY: this.locatorSystem.state.currentMousePosition.clientY
         };
 
+
+
         // Immediately render overlay
         this.renderLocatorOverlay(syntheticMouseEvent);
+
+        // Force overlay to show even if target element hasn't changed
+        const targetElement = this.getTargetElementAtPosition(syntheticMouseEvent);
+        if (targetElement) {
+          this.locatorSystem.overlay.show(targetElement);
+        }
 
         // Check for auto-show parent tooltip
         setTimeout(() => {
